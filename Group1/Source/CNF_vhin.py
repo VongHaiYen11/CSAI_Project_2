@@ -253,8 +253,8 @@ def solve_hashiwokakero(matrix):
         cnf += exactly_k_of_n_true(k, island_bridges)
 
     # Constraint: avoid cross
-    horizontals = [b for b in bridges if b.start.x == b.end.x]
-    verticals = [b for b in bridges if b.start.y == b.end.y]
+    verticals = [b for b in bridges if b.start.x == b.end.x]
+    horizontals = [b for b in bridges if b.start.y == b.end.y]
     cnf += avoid_crosses(verticals, horizontals, bridge_to_lit)
 
     # Solve
