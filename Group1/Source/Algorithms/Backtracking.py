@@ -1,29 +1,43 @@
+import time
+
 class Backtracking:
     def __init__(self, matrix):
         self.matrix = matrix
         self.n = len(matrix)
 
+        # List of islands: (row, col, value)
         self.islands = []
         for i in range(self.n):
             for j in range(self.n):
                 if matrix[i][j] > 0:
                     self.islands.append((i, j, matrix[i][j]))
 
-        self.island_value = {(x, y): v for (x, y, v) in self.islands}
+        # Map: island position -> required degree
+        self.island_value = {}
+        for x, y, v in self.islands:
+            self.island_value[(x, y)] = v
+
+        # Current number of bridges connected to each island
+        self.current_degree = {}
+        for x, y, _ in self.islands:
+            self.current_degree[(x, y)] = 0
+
+        # All possible bridge edges
         self.edges = self.generate_edges()
 
-        self.current_degree = {(x, y): 0 for (x, y, v) in self.islands}
-
-        # list of (a, b, count)
+        # Current solution: (a, b, count)
         self.solution = []
 
     # ---------------------------------------------------------
+    # Generate all possible edges (right and down only)
     def generate_edges(self):
         edges = []
-        island_pos = {(x, y): v for (x, y, v) in self.islands} # Speed up the searching process (for a neighbor island)
+        island_pos = {}
+        for x, y, _ in self.islands:
+            island_pos[(x, y)] = True
 
-        for (x, y, v) in self.islands:
-            # RIGHT
+        for x, y, _ in self.islands:
+            # Look right
             c = y + 1
             while c < self.n:
                 if (x, c) in island_pos:
@@ -31,7 +45,7 @@ class Backtracking:
                     break
                 c += 1
 
-            # DOWN
+            # Look down
             r = x + 1
             while r < self.n:
                 if (r, y) in island_pos:
@@ -42,52 +56,86 @@ class Backtracking:
         return edges
 
     # ---------------------------------------------------------
+    # Check if two bridges intersect
     def is_intersect(self, a1, b1, a2, b2):
-        # Nếu hai cầu có chung endpoint → không tính là intersect
+        # Share endpoint -> not intersect
         if a1 == a2 or a1 == b2 or b1 == a2 or b1 == b2:
             return False
 
-        # Kiểm tra orientation theo grid
-        horizontal1 = (a1[0] == b1[0])  # cùng row → ngang
-        horizontal2 = (a2[0] == b2[0])
+        h1 = (a1[0] == b1[0])
+        h2 = (a2[0] == b2[0])
 
-        # Cùng hướng → không thể cắt nhau
-        if horizontal1 and horizontal2:
-            return False
-        if not horizontal1 and not horizontal2:
+        # Same direction -> cannot intersect
+        if h1 == h2:
             return False
 
-        # Đảo thứ tự để bridge1 luôn là horizontal
-        if not horizontal1 and horizontal2:
+        # Ensure first bridge is horizontal
+        if not h1:
             return self.is_intersect(a2, b2, a1, b1)
 
-        # Bây giờ:
-        # bridge1: horizontal (cùng row)
-        # bridge2: vertical   (cùng column)
+        row = a1[0]
+        col = a2[1]
 
-        row_h = a1[0]      # row của horizontal
-        col_v = a2[1]      # column của vertical
+        y1 = min(a1[1], b1[1])
+        y2 = max(a1[1], b1[1])
 
-        # Khoảng horizontal của bridge1
-        y_low  = min(a1[1], b1[1])
-        y_high = max(a1[1], b1[1])
+        x1 = min(a2[0], b2[0])
+        x2 = max(a2[0], b2[0])
 
-        # Khoảng vertical của bridge2
-        x_low  = min(a2[0], b2[0])
-        x_high = max(a2[0], b2[0])
-
-        # Kiểm tra giao điểm: col_v nằm trong horizontal, row_h nằm trong vertical
-        return (y_low < col_v < y_high) and (x_low < row_h < x_high)
-
+        return (y1 < col < y2) and (x1 < row < x2)
 
     # ---------------------------------------------------------
-    def can_add_bridge(self, a, b):
-        for (start, end, _) in self.solution:
-            if self.is_intersect(a, b, start, end):
+    # Check if graph is connected
+    def is_connected(self):
+        if len(self.islands) == 0:
+            return True
+
+        n = len(self.islands)
+        adj = [[] for _ in range(n)]
+
+        # Build mapping (position -> index)
+        pos_to_idx = {}
+        for i in range(n):
+            x, y, _ = self.islands[i]
+            pos_to_idx[(x, y)] = i
+
+        # Fill adjacency from placed bridges
+        for a, b, count in self.solution:
+            if count == 0:
+                continue
+            ia = pos_to_idx[a]
+            ib = pos_to_idx[b]
+            adj[ia].append(ib)
+            adj[ib].append(ia)
+
+        # DFS using stack
+        visited = [False] * n
+        stack = [0]
+        visited[0] = True
+
+        while stack:
+            u = stack.pop()
+            for v in adj[u]:
+                if not visited[v]:
+                    visited[v] = True
+                    stack.append(v)
+
+        # Check all visited
+        for v in visited:
+            if not v:
                 return False
         return True
 
     # ---------------------------------------------------------
+    # Check if we can place bridge without crossing
+    def can_add_bridge(self, a, b):
+        for x, y, _ in self.solution:
+            if self.is_intersect(a, b, x, y):
+                return False
+        return True
+
+    # ---------------------------------------------------------
+    # Place / remove bridges
     def place_bridge(self, a, b, count):
         self.current_degree[a] += count
         self.current_degree[b] += count
@@ -99,18 +147,23 @@ class Backtracking:
         self.solution.pop()
 
     # ---------------------------------------------------------
-    def backtracking_edge(self, brigde_idx):
-        if brigde_idx == len(self.edges):
-            for (x, y, island_val) in self.islands:
-                if self.current_degree[(x, y)] != island_val:
+    # Backtracking over edges
+    def backtracking_edge(self, idx):
+        # All edges processed
+        if idx == len(self.edges):
+            # Check degrees
+            for x, y, need in self.islands:
+                if self.current_degree[(x, y)] != need:
                     return False
-            return True
+            # Check connectivity
+            return self.is_connected()
 
-        a, b = self.edges[brigde_idx]
+        a, b = self.edges[idx]
         va = self.island_value[a]
         vb = self.island_value[b]
 
-        for count in [0, 1, 2]:
+        # Try 0, 1, 2 bridges
+        for count in (0, 1, 2):
             if self.current_degree[a] + count > va:
                 continue
             if self.current_degree[b] + count > vb:
@@ -121,7 +174,7 @@ class Backtracking:
             if count > 0:
                 self.place_bridge(a, b, count)
 
-            if self.backtracking_edge(brigde_idx + 1):
+            if self.backtracking_edge(idx + 1):
                 return True
 
             if count > 0:
@@ -130,28 +183,33 @@ class Backtracking:
         return False
 
     # ---------------------------------------------------------
+    # Solve the puzzle
     def solve(self):
+        start = time.perf_counter()
         ok = self.backtracking_edge(0)
-        res = self.build_output_matrix()
-        return ok, res
+        duration = time.perf_counter() - start
+
+        if not ok:
+            return None, duration
+
+        return self.build_output_matrix(), duration
 
     # ---------------------------------------------------------
-    # Build output matrix with symbols
-    # ---------------------------------------------------------
+    # Build final matrix with bridges
     def build_output_matrix(self):
         out = [["0" for _ in range(self.n)] for _ in range(self.n)]
 
-        # put islands
+        # Place islands
         for x, y, v in self.islands:
             out[x][y] = str(v)
 
-        # fill bridges into matrix
+        # Draw bridges
         for a, b, count in self.solution:
-            if a[0] == b[0]:  # horizontal
+            if a[0] == b[0]:
                 row = a[0]
                 for y in range(min(a[1], b[1]) + 1, max(a[1], b[1])):
                     out[row][y] = "-" if count == 1 else "="
-            else:  # vertical
+            else:
                 col = a[1]
                 for x in range(min(a[0], b[0]) + 1, max(a[0], b[0])):
                     out[x][col] = "|" if count == 1 else "$"
@@ -159,7 +217,7 @@ class Backtracking:
         return out
 
 
-
+# ------------------- RUN -------------------
 matrix = [
     [0, 2, 0, 5, 0, 0, 2],
     [0, 0, 0, 0, 0, 0, 0],
@@ -171,8 +229,12 @@ matrix = [
 ]
 
 solver = Backtracking(matrix)
-ok, final_grid = solver.solve()
+result, runtime = solver.solve()
 
-print("Solved:", ok)
-for row in final_grid:
-    print(row)
+if result is None:
+    print("No solution")
+else:
+    for row in result:
+        print(row)
+
+print("Time:", runtime)
