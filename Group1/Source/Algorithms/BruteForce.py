@@ -1,5 +1,27 @@
 import time
 import itertools
+import signal
+from contextlib import contextmanager
+
+class TimeoutException(Exception):
+    """Exception raised when timeout occurs"""
+    pass
+
+@contextmanager
+def time_limit(seconds):
+    """Context manager for timeout using signal"""
+    def signal_handler(signum, frame):
+        raise TimeoutException("Timed out!")
+    
+    # Set the signal handler
+    signal.signal(signal.SIGALRM, signal_handler)
+    signal.alarm(seconds)
+    
+    try:
+        yield
+    finally:
+        signal.alarm(0)  # Disable the alarm
+
 
 class BruteForce:
     def __init__(self, matrix):
@@ -159,61 +181,104 @@ class BruteForce:
         
         return out
     
-    def solve(self):
-        """Brute Force: Thử tất cả các configuration"""
-        start = time.perf_counter()
-        
+    def solve(self, timeout=300):
+        """
+        Brute Force với timeout (chạy được trên Windows)
+        timeout: thời gian tối đa (giây)
+        """
+        start_time = time.perf_counter()
+
         num_edges = len(self.edges)
         total_configs = 3 ** num_edges
-        
+
         print(f"\n=== BRUTE FORCE ===")
         print(f"Number of edges: {num_edges}")
         print(f"Total configurations to try: {total_configs}")
+        print(f"Timeout: {timeout}s")
         print("Starting brute force search...\n")
-        
-        # Vét cạn tất cả các configuration
+
         checked = 0
+        last_log = start_time
+
         for config in itertools.product([0, 1, 2], repeat=num_edges):
             checked += 1
-            
-            # In progress mỗi 10000 lần thử (tùy chỉnh)
-            if checked % 10000 == 0:
-                print(f"Checked {checked}/{total_configs} configurations...")
-            
+
+            # Timeout check (Windows-safe)
+            now = time.perf_counter()
+            if now - start_time >= timeout:
+                elapsed = now - start_time
+                progress = (checked / total_configs) * 100
+                print(f"\n⏱ TIMEOUT after {elapsed:.2f}s")
+                print(f"Checked {checked:,}/{total_configs:,} configurations ({progress:.4f}%)")
+                return None, elapsed
+
+            # Log progress mỗi 5 giây hoặc mỗi 10000 configs
+            if checked % 10000 == 0 or (now - last_log) >= 5.0:
+                elapsed = now - start_time
+                progress = (checked / total_configs) * 100
+                rate = checked / elapsed if elapsed > 0 else 0
+                print(f"Progress: {checked:,}/{total_configs:,} ({progress:.4f}%) | "
+                    f"Time: {elapsed:.2f}s | Rate: {rate:.0f} configs/s")
+                last_log = now
+
             if self.is_valid_config(config):
-                duration = time.perf_counter() - start
-                print(f"\n✓ Solution found after checking {checked} configurations!")
-                print(f"Time: {duration:.6f}s")
-                return self.build_output(config), duration
-        
-        duration = time.perf_counter() - start
-        print(f"\n✗ No solution found after checking all {total_configs} configurations")
-        print(f"Time: {duration:.6f}s")
-        return None, duration
+                elapsed = time.perf_counter() - start_time
+                print(f"\n Solution found after checking {checked:,} configurations!")
+                print(f"Time: {elapsed:.6f}s")
+                return self.build_output(config), elapsed
+
+        elapsed = time.perf_counter() - start_time
+        print(f"\n No solution found after checking all {total_configs:,} configurations")
+        print(f"Time: {elapsed:.6f}s")
+        return None, elapsed
 
 
-# =============== MAIN TEST ===============
+# # =============== MAIN TEST ===============
 
-if __name__ == "__main__":
-    matrix = [
-        [0, 2, 0, 5, 0, 0, 2],
-        [0, 0, 0, 0, 0, 0, 0],
-        [4, 0, 2, 0, 2, 0, 4],
-        [0, 0, 0, 0, 0, 0, 0],
-        [0, 1, 0, 5, 0, 2, 0],
-        [0, 0, 0, 0, 0, 0, 0],
-        [4, 0, 0, 0, 0, 0, 3],
-    ]
+# if __name__ == "__main__":
+#     # Test case nhỏ
+#     matrix_small = [
+#         [0, 2, 0, 5, 0, 0, 2],
+#         [0, 0, 0, 0, 0, 0, 0],
+#         [4, 0, 2, 0, 2, 0, 4],
+#         [0, 0, 0, 0, 0, 0, 0],
+#         [0, 1, 0, 5, 0, 2, 0],
+#         [0, 0, 0, 0, 0, 0, 0],
+#         [4, 0, 0, 0, 0, 0, 3],
+#     ]
     
-    solver = BruteForce(matrix)
-    result, runtime = solver.solve()
+#     # Test case lớn (sẽ timeout)
+#     matrix_large = [
+#         [3, 0, 2, 0, 3, 0, 2],
+#         [0, 0, 0, 0, 0, 0, 0],
+#         [2, 0, 4, 0, 3, 0, 3],
+#         [0, 0, 0, 0, 0, 0, 0],
+#         [3, 0, 2, 0, 2, 0, 2],
+#         [0, 0, 0, 0, 0, 0, 0],
+#         [2, 0, 3, 0, 2, 0, 2],
+#     ]
     
-    if result:
-        print("\n--- RESULT MATRIX ---")
-        for row in result:
-            formatted = "[ " + " , ".join([f'"{x}"' for x in row]) + " ]"
-            print(formatted)
-    else:
-        print("\nNo solution exists.")
-
-    print(f"\nTotal Time: {runtime:.6f}s")
+#     print("Testing with SMALL matrix:")
+#     solver1 = BruteForce(matrix_small)
+#     result1, runtime1 = solver1.solve(timeout=60)  # 60s timeout for test
+    
+#     if result1:
+#         print("\n--- RESULT MATRIX ---")
+#         for row in result1:
+#             formatted = "[ " + " , ".join([f'"{x}"' for x in row]) + " ]"
+#             print(formatted)
+#     else:
+#         print("\nNo solution found (or timeout).")
+    
+#     print("\n" + "="*60)
+#     print("\nTesting with LARGE matrix:")
+#     solver2 = BruteForce(matrix_large)
+#     result2, runtime2 = solver2.solve(timeout=10)  # 10s timeout for demo
+    
+#     if result2:
+#         print("\n--- RESULT MATRIX ---")
+#         for row in result2:
+#             formatted = "[ " + " , ".join([f'"{x}"' for x in row]) + " ]"
+#             print(formatted)
+#     else:
+#         print("\nNo solution found (or timeout).")

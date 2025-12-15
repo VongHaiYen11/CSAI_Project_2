@@ -3,7 +3,7 @@ import heapq
 import os
 import sys
 from copy import deepcopy
-import itertools # <--- THÊM IMPORT NÀY ĐỂ FIX LỖI HEAPQ
+import itertools 
 
 # ============================================================
 # 1. SETUP ĐƯỜNG DẪN IMPORT
@@ -141,7 +141,7 @@ class AStar:
                     # Push: Thêm next(counter) vào tuple
                     heapq.heappush(pq, (new_state["fx"], -new_state["index"], next(counter), new_state))
 
-        print("❌ No solution found.")
+        print("No solution found.")
         return None, (time.time() - start_time)
 
     def _evaluate_state(self, state):
@@ -227,27 +227,28 @@ class AStar:
 # PHẦN 3: MAIN DEMO (INPUT TỪ HÌNH 1)
 # ============================================================
 
-if __name__ == "__main__":
-    matrix_input = [
-        [0, 2, 0, 5, 0, 0, 2],
-        [0, 0, 0, 0, 0, 0, 0],
-        [4, 0, 2, 0, 2, 0, 4],
-        [0, 0, 0, 0, 0, 0, 0],
-        [0, 1, 0, 5, 0, 2, 0],
-        [0, 0, 0, 0, 0, 0, 0],
-        [4, 0, 0, 0, 0, 0, 3],
-    ]
+# if __name__ == "__main__":
+#     matrix_input = [
+#         [2,0,0,2,0,1,0],
+#           [0,0,2,0,4,0,4],
+#           [0,0,0,1,0,0,0],
+#           [
+#             2,0,4,0,0,0,0],
+#            [ 0,0,0,0,2,0,4],
+#             [1,0,3,0,0,0,0],
+#            [ 0,1,0,3,0,0,2]
+#     ]
 
-    solver = AStar()
+#     solver = AStar()
     
-    # Lấy kết quả trả về: Ma trận + Thời gian
-    result_grid, run_time = solver.solve(matrix_input)
+#     # Lấy kết quả trả về: Ma trận + Thời gian
+#     result_grid, run_time = solver.solve(matrix_input)
     
-    if result_grid:
-        print(f"\nTime returned: {run_time}s")
-        print("Result Matrix returned:")
-        # Duyệt qua từng dòng và in format đẹp
-        for row in result_grid:
-            # Tạo chuỗi: [ "0" , "2" , "=" ... ]
-            formatted_row = "[ " + " , ".join([f"'{x}'" for x in row]) + " ]"
-            print(formatted_row)
+#     if result_grid:
+#         print(f"\nTime returned: {run_time}s")
+#         print("Result Matrix returned:")
+#         # Duyệt qua từng dòng và in format đẹp
+#         for row in result_grid:
+#             # Tạo chuỗi: [ "0" , "2" , "=" ... ]
+#             formatted_row = "[ " + " , ".join([f"'{x}'" for x in row]) + " ]"
+#             print(formatted_row)

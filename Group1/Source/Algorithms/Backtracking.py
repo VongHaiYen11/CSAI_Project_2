@@ -1,5 +1,9 @@
 import time
 
+class TimeoutException(Exception):
+    """Raised when backtracking exceeds time limit"""
+    pass
+
 class Backtracking:
     def __init__(self, matrix):
         self.matrix = matrix
@@ -149,6 +153,20 @@ class Backtracking:
     # ---------------------------------------------------------
     # Backtracking over edges
     def backtracking_edge(self, idx):
+        self.nodes_visited += 1
+
+        # Check timeout every ~1000 nodes or 1s
+        if self.nodes_visited % 1000 == 0:
+            elapsed = time.perf_counter() - self.start_time
+            if elapsed > self.timeout:
+                raise TimeoutException()
+
+            if elapsed - self.last_log_time >= 5:
+                print(f"Progress: {self.nodes_visited:,} nodes | "
+                      f"Depth: {idx}/{len(self.edges)} | "
+                      f"Time: {elapsed:.2f}s")
+                self.last_log_time = elapsed
+        
         # All edges processed
         if idx == len(self.edges):
             # Check degrees
@@ -184,15 +202,37 @@ class Backtracking:
 
     # ---------------------------------------------------------
     # Solve the puzzle
-    def solve(self):
-        start = time.perf_counter()
-        ok = self.backtracking_edge(0)
-        duration = time.perf_counter() - start
+    def solve(self, timeout=300):
+        print("\n=== BACKTRACKING ===")
+        print(f"Edges: {len(self.edges)} | Islands: {len(self.islands)}")
+        print(f"Timeout: {timeout}s")
+        print("Starting search...\n")
 
-        if not ok:
+        self.start_time = time.perf_counter()
+        self.timeout = timeout
+        self.nodes_visited = 0
+        self.last_log_time = 0.0
+
+        try:
+            ok = self.backtracking_edge(0)
+            duration = time.perf_counter() - self.start_time
+
+            if ok:
+                print(f"\n✓ Solution found")
+                print(f"Nodes visited: {self.nodes_visited:,}")
+                print(f"Time: {duration:.6f}s")
+                return self.build_output_matrix(), duration
+            else:
+                print(f"\n✗ No solution exists")
+                print(f"Nodes visited: {self.nodes_visited:,}")
+                print(f"Time: {duration:.6f}s")
+                return None, duration
+        
+        except TimeoutException:
+            duration = time.perf_counter() - self.start_time
+            print(f"\n⏱ TIMEOUT after {duration:.2f}s")
+            print(f"Nodes visited: {self.nodes_visited:,}")
             return None, duration
-
-        return self.build_output_matrix(), duration
 
     # ---------------------------------------------------------
     # Build final matrix with bridges
@@ -218,23 +258,71 @@ class Backtracking:
 
 
 # ------------------- RUN -------------------
-matrix = [
-    [0, 2, 0, 5, 0, 0, 2],
-    [0, 0, 0, 0, 0, 0, 0],
-    [4, 0, 2, 0, 2, 0, 4],
-    [0, 0, 0, 0, 0, 0, 0],
-    [0, 1, 0, 5, 0, 2, 0],
-    [0, 0, 0, 0, 0, 0, 0],
-    [4, 0, 0, 0, 0, 0, 3],
-]
+# matrix = [
+#     [0, 2, 0, 5, 0, 0, 2],
+#     [0, 0, 0, 0, 0, 0, 0],
+#     [4, 0, 2, 0, 2, 0, 4],
+#     [0, 0, 0, 0, 0, 0, 0],
+#     [0, 1, 0, 5, 0, 2, 0],
+#     [0, 0, 0, 0, 0, 0, 0],
+#     [4, 0, 0, 0, 0, 0, 3],
+# ]
 
-solver = Backtracking(matrix)
-result, runtime = solver.solve()
+# solver = Backtracking(matrix)
+# result, runtime = solver.solve()
 
-if result is None:
-    print("No solution")
-else:
-    for row in result:
-        print(row)
+# if result is None:
+#     print("No solution")
+# else:
+#     for row in result:
+#         print(row)
 
-print("Time:", runtime)
+# print("Time:", runtime)
+
+# if __name__ == "__main__":
+#     # Test case nhỏ
+#     matrix_small = [
+#         [0, 2, 0, 5, 0, 0, 2],
+#         [0, 0, 0, 0, 0, 0, 0],
+#         [4, 0, 2, 0, 2, 0, 4],
+#         [0, 0, 0, 0, 0, 0, 0],
+#         [0, 1, 0, 5, 0, 2, 0],
+#         [0, 0, 0, 0, 0, 0, 0],
+#         [4, 0, 0, 0, 0, 0, 3],
+#     ]
+    
+#     # Test case lớn
+#     matrix_large = [
+#         [3, 0, 2, 0, 3, 0, 2],
+#         [0, 0, 0, 0, 0, 0, 0],
+#         [2, 0, 4, 0, 3, 0, 3],
+#         [0, 0, 0, 0, 0, 0, 0],
+#         [3, 0, 2, 0, 2, 0, 2],
+#         [0, 0, 0, 0, 0, 0, 0],
+#         [2, 0, 3, 0, 2, 0, 2],
+#     ]
+    
+#     print("Testing with SMALL matrix:")
+#     solver1 = Backtracking(matrix_small)
+#     result1, runtime1 = solver1.solve(timeout=60)  # 60s timeout for test
+    
+#     if result1:
+#         print("\n--- RESULT MATRIX ---")
+#         for row in result1:
+#             formatted = "[ " + " , ".join([f'"{x}"' for x in row]) + " ]"
+#             print(formatted)
+#     else:
+#         print("\nNo solution found (or timeout).")
+    
+#     print("\n" + "="*60)
+#     print("\nTesting with LARGE matrix:")
+#     solver2 = Backtracking(matrix_large)
+#     result2, runtime2 = solver2.solve(timeout=10)  # 10s timeout for demo
+    
+#     if result2:
+#         print("\n--- RESULT MATRIX ---")
+#         for row in result2:
+#             formatted = "[ " + " , ".join([f'"{x}"' for x in row]) + " ]"
+#             print(formatted)
+#     else:
+#         print("\nNo solution found (or timeout).")
