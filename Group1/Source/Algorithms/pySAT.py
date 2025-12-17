@@ -5,6 +5,7 @@
 from pysat.solvers import Glucose3
 import os
 import sys
+import time
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
@@ -49,6 +50,7 @@ def pySAT(matrix):
     clauses, reverse_map, islands, bridges, var_map, num_vars = generate_cnf_clauses(matrix)
     
     # Khởi tạo Solver
+    start = time.perf_counter()
     with Glucose3(bootstrap_with=clauses) as solver:
         while solver.solve():
             model = solver.get_model()
@@ -59,5 +61,6 @@ def pySAT(matrix):
             else:
                 # Nếu không liên thông, chặn nghiệm này và tìm tiếp
                 solver.add_clause([-x for x in model])
+    duration = time.perf_counter() - start;
                 
-    return None, None
+    return None, None, duration

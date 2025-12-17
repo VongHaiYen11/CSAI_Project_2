@@ -130,11 +130,9 @@ def run_astar(matrix, timeout):
 
 def run_pysat(matrix, timeout):
     try:
-        start = time.perf_counter()
-        model, reverse_map = solve_hashi(matrix)
-        elapsed = time.perf_counter() - start
+        model, reverse_map, duration = solve_hashi(matrix)
 
-        if elapsed > timeout: return None, None, "TIMEOUT"
+        if duration > timeout: return None, None, "TIMEOUT"
         if not model: return None, None, "NO SOLUTION"
 
         n = len(matrix)
@@ -165,7 +163,7 @@ def run_pysat(matrix, timeout):
             else:
                 for r in range(u.r + 1, v.r): grid[r][u.c] = char
 
-        return grid, elapsed * 1000, "SUCCESS"
+        return grid, duration * 1000, "SUCCESS"
     except Exception as e: return None, None, f"ERROR: {e}"
 
 
