@@ -6,29 +6,21 @@ from copy import deepcopy
 import itertools 
 
 # ============================================================
-# 1. SETUP ĐƯỜNG DẪN IMPORT
+# IMPORT SETUP (Giữ nguyên)
 # ============================================================
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
-# Import các hàm từ file CNF_udth.py nằm ở thư mục cha
 try:
-    from CNF import (
-        generate_cnf_clauses,
-        Island
-    )
+    from CNF import generate_cnf_clauses, Island
 except ImportError as e:
-    print("Lỗi Import: Không tìm thấy file CNF_udth.py hoặc các hàm cần thiết.")
-    print("Hãy chắc chắn file Astar.py nằm trong folder Algorithms và CNF_udth.py nằm trong folder Source.")
     raise e
 
 # ============================================================
-# PHẦN 2: CLASS A* (Logic giải thuật)
+# HELPER CLASS: DSU (Giữ nguyên - Vì nó nhanh)
 # ============================================================
-
 class DSU:
-    """Helper class cho Heuristic"""
     def __init__(self, islands):
         self.parent = {isl.id: isl.id for isl in islands}
         self.num_components = len(islands)
@@ -43,14 +35,16 @@ class DSU:
             return True
         return False
 
+# ============================================================
+# CLASS A* (Đã sửa logic g(x))
+# ============================================================
 class AStar:
     def __init__(self):
         self.solution_vars = None
-        self.matrix = None # Lưu matrix input để dùng khi tạo kết quả
+        self.matrix = None 
 
     def solve(self, matrix):
         print("\n--- Preprocessing ---")
-        # start_time = time.perf_counter()
         self.matrix = matrix
 
         # 1. SETUP
@@ -61,18 +55,9 @@ class AStar:
          self.var_map, 
          self.num_vars) = generate_cnf_clauses(matrix)
         
-        # # 1. SETUP
-        # self.islands = parse_board(matrix)
-        # self.bridges = find_potential_bridges(matrix, self.islands)
-        # self.var_map, self.reverse_map, self.num_vars = create_variables(self.bridges)
-        
-        # # Sinh clauses
-        # self.clauses = generate_capacity_constraints(self.islands, self.bridges, self.var_map)
-        # self.clauses += generate_geometry_constraints(self.bridges, self.var_map)
-        
-        print(f"Setup done: {len(self.islands)} islands, {len(self.clauses)} clauses.")
+        print(f"Setup done: {len(self.islands)} islands.")
 
-        # 2. CHUẨN BỊ A*
+        # 2. CHUẨN BỊ INPUT
         self.bridge_pairs = []
         seen = set()
         for b in self.bridges:
@@ -82,85 +67,90 @@ class AStar:
             seen.add(key)
             self.bridge_pairs.append((self.var_map[(u, v, 1)], self.var_map[(u, v, 2)]))
 
-        # --- TẠO COUNTER ĐỂ FIX LỖI SO SÁNH DICT ---
         counter = itertools.count() 
 
-        print("\n--- Starting A* solver ---")
+        print("\n--- Starting A* (Standard Version) ---")
         start_time = time.perf_counter()
 
-        # Init Queue (Min-Heap)
+        # Init Queue
         pq = []
+        # gx = 0 ở trạng thái đầu tiên
         initial_state = {
             "index": 0, "0": [], "1": [],
-            "gx": 0, "fx": float('inf'), "components": len(self.islands)
+            "gx": 0, "fx": 0, "components": len(self.islands)
         }
         
         # Đánh giá node đầu tiên
-        res = self._evaluate_state(initial_state)
+        res = self._evaluate_state(initial_state) # Trả về [hx, components]
         if res:
-            initial_state["gx"], initial_state["fx"], initial_state["components"] = res[0], res[0]+res[1], res[2]
-            # Push: (fx, -index, count, state)
+            hx = res[0]
+            initial_state["components"] = res[1]
+            initial_state["fx"] = initial_state["gx"] + hx # f(x) = g(x) + h(x)
             heapq.heappush(pq, (initial_state["fx"], 0, next(counter), initial_state))
 
-        visited = 0
+        visited_nodes = 0
         
         # 3. VÒNG LẶP CHÍNH
         while pq:
-            # Pop: Lấy 4 phần tử
             curr_fx, _, _, state = heapq.heappop(pq)
-            visited += 1
+            visited_nodes += 1
 
             # Goal Check
             if state["index"] >= len(self.bridge_pairs):
                 if state["components"] == 1:
                     duration = time.perf_counter() - start_time
-                    
                     self.solution_vars = state["1"]
-                    
-                    # --- TRẢ VỀ KẾT QUẢ + THỜI GIAN ---
-                    result_matrix = self.get_result_matrix()
-                    return result_matrix, duration
-                
+                    print(f"Solved! Visited nodes: {visited_nodes}")
+                    return self.get_result_matrix(), duration
                 continue
 
-            # Branching (3 hướng: 0, 1, 2 cầu)
+            # Branching
             var1, var2 = self.bridge_pairs[state["index"]]
+            
+            # 3 Lựa chọn: 0, 1, 2 cầu
             options = [
-                ([],           [var1, var2]), # Case 0 cầu
-                ([var1],       [var2]),       # Case 1 cầu
-                ([var1, var2], [])            # Case 2 cầu
+                ([],           [var1, var2]), 
+                ([var1],       [var2]),       
+                ([var1, var2], [])            
             ]
 
             for add_to_1, add_to_0 in options:
                 new_state = deepcopy(state)
                 new_state["1"].extend(add_to_1)
                 new_state["0"].extend(add_to_0)
-                new_state["index"] += 1
+                new_state["index"] += 1 # Tăng độ sâu
                 
+                # --- PHẦN QUAN TRỌNG: TÍNH LẠI GX, FX ---
+                # g(x): Chi phí đi đến đây (mỗi bước tốn 1 đơn vị công sức)
+                new_state["gx"] = state["gx"] + 1 
+                
+                # h(x): Ước lượng còn bao xa
                 eval_res = self._evaluate_state(new_state)
                 if eval_res:
-                    new_state["gx"] = eval_res[0]
-                    new_state["fx"] = eval_res[0] + eval_res[1]
-                    new_state["components"] = eval_res[2]
-                    # Push: Thêm next(counter) vào tuple
+                    new_hx = eval_res[0]
+                    new_state["components"] = eval_res[1]
+                    
+                    # f(x) = g(x) + h(x)
+                    new_state["fx"] = new_state["gx"] + new_hx
+                    
+                    # Push vào heap
                     heapq.heappush(pq, (new_state["fx"], -new_state["index"], next(counter), new_state))
 
         print("No solution found.")
         return None, (time.time() - start_time)
 
     def _evaluate_state(self, state):
-        # Map assignment
+        # 1. Map assignment & Check CNF (Hard Constraint)
         assignment = {}
         for x in state["1"]: assignment[x] = True
         for x in state["0"]: assignment[x] = False
 
-        # 1. Check CNF
         for clause in self.clauses:
             violated = True
             satisfied = False
             for lit in clause:
                 val = assignment.get(abs(lit))
-                if val is None: # Chưa gán
+                if val is None: 
                     violated = False
                     continue
                 if (lit > 0 and val) or (lit < 0 and not val):
@@ -169,40 +159,35 @@ class AStar:
                     break
             if violated: return False
 
-        # 2. Check Liên Thông (Heuristic)
+        # 2. Heuristic (Chỉ dùng DSU cho nhanh)
         dsu = DSU(self.islands)
         for var_id in state["1"]:
             if var_id in self.reverse_map:
                 u, v, _, _ = self.reverse_map[var_id]
                 dsu.union(u.id, v.id)
         
-        gx = 0 
-        hx = (dsu.num_components - 1) * 10
-        return [gx, hx, dsu.num_components]
+        # Tính h(x)
+        # Weight = 10 (Hoặc 5) để cân bằng với g(x)
+        # Nếu g(x) tăng 1, mà h(x) giảm 10 -> Thuật toán thấy "hời", sẽ đi tiếp.
+        heuristic_weight = 10 
+        hx = (dsu.num_components - 1) * heuristic_weight
+        
+        return [hx, dsu.num_components]
 
     def get_result_matrix(self):
-        """Hàm helper để tạo ma trận kết quả (List 2D)"""
+        # (Giữ nguyên code cũ của bạn)
         if not self.solution_vars: return None
-        
         rows, cols = len(self.matrix), len(self.matrix[0])
-        # Tạo lưới rỗng chứa string "0"
         grid_str = [["0" for _ in range(cols)] for _ in range(rows)]
-        
-        # Điền số đảo
         for isl in self.islands:
             grid_str[isl.r][isl.c] = str(isl.val)
-            
-        # Điền cầu
         sol_set = set(self.solution_vars)
         for b in self.bridges:
             u, v, direction = b
             id1 = self.var_map[(u, v, 1)]
             id2 = self.var_map[(u, v, 2)]
-            
-            if id1 not in sol_set: continue # Ko có cầu
-            
+            if id1 not in sol_set: continue 
             is_double = id2 in sol_set
-            
             symbol = ""
             if direction == 'H':
                 symbol = "=" if is_double else "-" 
@@ -214,16 +199,12 @@ class AStar:
                 c = u.c
                 r_start, r_end = sorted((u.r, v.r))
                 for r in range(r_start + 1, r_end): grid_str[r][c] = symbol
-                
         return grid_str
 
     def print_solution(self):
-        """In kết quả ra màn hình sử dụng get_result_matrix"""
         grid = self.get_result_matrix()
         if not grid: return
-
         print("\n--- KẾT QUẢ ---")
         for row in grid:
             formatted = "[ " + " , ".join([f'"{x}"' for x in row]) + " ]"
             print(formatted)
-
