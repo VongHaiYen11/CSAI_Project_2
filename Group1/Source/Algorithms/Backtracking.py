@@ -162,9 +162,9 @@ class Backtracking:
                 raise TimeoutException()
 
             if elapsed - self.last_log_time >= 5:
-                print(f"Progress: {self.nodes_visited:,} nodes | "
-                      f"Depth: {idx}/{len(self.edges)} | "
-                      f"Time: {elapsed:.2f}s")
+                # print(f"Progress: {self.nodes_visited:,} nodes | "
+                #       f"Depth: {idx}/{len(self.edges)} | "
+                #       f"Time: {elapsed:.2f}s")
                 self.last_log_time = elapsed
         
         # All edges processed

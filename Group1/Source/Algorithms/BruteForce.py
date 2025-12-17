@@ -208,8 +208,8 @@ class BruteForce:
             if now - start_time >= timeout:
                 elapsed = now - start_time
                 progress = (checked / total_configs) * 100
-                print(f"\n⏱ TIMEOUT after {elapsed:.2f}s")
-                print(f"Checked {checked:,}/{total_configs:,} configurations ({progress:.4f}%)")
+                # print(f"\n⏱ TIMEOUT after {elapsed:.2f}s")
+                # print(f"Checked {checked:,}/{total_configs:,} configurations ({progress:.4f}%)")
                 return None, elapsed
 
             # Log progress mỗi 5 giây hoặc mỗi 10000 configs
@@ -217,8 +217,8 @@ class BruteForce:
                 elapsed = now - start_time
                 progress = (checked / total_configs) * 100
                 rate = checked / elapsed if elapsed > 0 else 0
-                print(f"Progress: {checked:,}/{total_configs:,} ({progress:.4f}%) | "
-                    f"Time: {elapsed:.2f}s | Rate: {rate:.0f} configs/s")
+                # print(f"Progress: {checked:,}/{total_configs:,} ({progress:.4f}%) | "
+                #     f"Time: {elapsed:.2f}s | Rate: {rate:.0f} configs/s")
                 last_log = now
 
             if self.is_valid_config(config):

@@ -14,12 +14,8 @@ sys.path.append(parent_dir)
 
 # Import các hàm từ file CNF_udth.py nằm ở thư mục cha
 try:
-    from CNF_udth import (
-        parse_board, 
-        find_potential_bridges, 
-        create_variables, 
-        generate_capacity_constraints, 
-        generate_geometry_constraints,
+    from CNF import (
+        generate_cnf_clauses,
         Island
     )
 except ImportError as e:
@@ -56,15 +52,23 @@ class AStar:
         print("\n--- Preprocessing ---")
         # start_time = time.perf_counter()
         self.matrix = matrix
-        
+
         # 1. SETUP
-        self.islands = parse_board(matrix)
-        self.bridges = find_potential_bridges(matrix, self.islands)
-        self.var_map, self.reverse_map, self.num_vars = create_variables(self.bridges)
+        (self.clauses, 
+         self.reverse_map, 
+         self.islands, 
+         self.bridges, 
+         self.var_map, 
+         self.num_vars) = generate_cnf_clauses(matrix)
         
-        # Sinh clauses
-        self.clauses = generate_capacity_constraints(self.islands, self.bridges, self.var_map)
-        self.clauses += generate_geometry_constraints(self.bridges, self.var_map)
+        # # 1. SETUP
+        # self.islands = parse_board(matrix)
+        # self.bridges = find_potential_bridges(matrix, self.islands)
+        # self.var_map, self.reverse_map, self.num_vars = create_variables(self.bridges)
+        
+        # # Sinh clauses
+        # self.clauses = generate_capacity_constraints(self.islands, self.bridges, self.var_map)
+        # self.clauses += generate_geometry_constraints(self.bridges, self.var_map)
         
         print(f"Setup done: {len(self.islands)} islands, {len(self.clauses)} clauses.")
 
@@ -213,42 +217,13 @@ class AStar:
                 
         return grid_str
 
-    # def print_solution(self):
-    #     """In kết quả ra màn hình sử dụng get_result_matrix"""
-    #     grid = self.get_result_matrix()
-    #     if not grid: return
+    def print_solution(self):
+        """In kết quả ra màn hình sử dụng get_result_matrix"""
+        grid = self.get_result_matrix()
+        if not grid: return
 
-    #     print("\n--- KẾT QUẢ ---")
-    #     for row in grid:
-    #         formatted = "[ " + " , ".join([f'"{x}"' for x in row]) + " ]"
-    #         print(formatted)
+        print("\n--- KẾT QUẢ ---")
+        for row in grid:
+            formatted = "[ " + " , ".join([f'"{x}"' for x in row]) + " ]"
+            print(formatted)
 
-# ============================================================
-# PHẦN 3: MAIN DEMO (INPUT TỪ HÌNH 1)
-# ============================================================
-
-# if __name__ == "__main__":
-#     matrix_input = [
-#         [2,0,0,2,0,1,0],
-#           [0,0,2,0,4,0,4],
-#           [0,0,0,1,0,0,0],
-#           [
-#             2,0,4,0,0,0,0],
-#            [ 0,0,0,0,2,0,4],
-#             [1,0,3,0,0,0,0],
-#            [ 0,1,0,3,0,0,2]
-#     ]
-
-#     solver = AStar()
-    
-#     # Lấy kết quả trả về: Ma trận + Thời gian
-#     result_grid, run_time = solver.solve(matrix_input)
-    
-#     if result_grid:
-#         print(f"\nTime returned: {run_time}s")
-#         print("Result Matrix returned:")
-#         # Duyệt qua từng dòng và in format đẹp
-#         for row in result_grid:
-#             # Tạo chuỗi: [ "0" , "2" , "=" ... ]
-#             formatted_row = "[ " + " , ".join([f"'{x}'" for x in row]) + " ]"
-#             print(formatted_row)
