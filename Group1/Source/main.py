@@ -14,7 +14,7 @@ import sys
 from Algorithms.BruteForce import BruteForce
 from Algorithms.Backtracking import Backtracking
 from Algorithms.Astar import AStar
-from CNF_udth import solve_hashi, parse_board
+from Algorithms.pySAT import pySAT
 
 
 # ============================================================
@@ -130,14 +130,14 @@ def run_astar(matrix, timeout):
 
 def run_pysat(matrix, timeout):
     try:
-        model, reverse_map, duration = solve_hashi(matrix)
+        model, reverse_map, duration, islands = pySAT(matrix)
 
         if duration > timeout: return None, None, "TIMEOUT"
         if not model: return None, None, "NO SOLUTION"
 
         n = len(matrix)
         grid = [["0"] * n for _ in range(n)]
-        islands = parse_board(matrix)
+        # islands = parse_board(matrix)
         for isl in islands: grid[isl.r][isl.c] = str(isl.val)
 
         active_vars = set(v for v in model if v > 0)

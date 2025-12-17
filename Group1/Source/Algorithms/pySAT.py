@@ -14,13 +14,13 @@ sys.path.append(parent_dir)
 from CNF import generate_cnf_clauses
 
 def check_connectivity(model, islands, reverse_map):
-    """Kiểm tra xem tất cả các đảo có liên thông với nhau không"""
     adj = {isl.id: [] for isl in islands}
     active_vars = [x for x in model if x > 0]
     
     for var_id in active_vars:
         if var_id in reverse_map:
             u, v, _, _ = reverse_map[var_id]
+            # Chỉ thêm cạnh nếu chưa tồn tại (tránh add 2 lần do cầu đôi)
             if v.id not in adj[u.id]: adj[u.id].append(v.id)
             if u.id not in adj[v.id]: adj[v.id].append(u.id)
             
@@ -57,10 +57,11 @@ def pySAT(matrix):
             
             # Kiểm tra liên thông (Logic đồ thị)
             if check_connectivity(model, islands, reverse_map):
-                return model, reverse_map
+                duration = time.perf_counter() - start;
+                return model, reverse_map, duration, islands
             else:
                 # Nếu không liên thông, chặn nghiệm này và tìm tiếp
                 solver.add_clause([-x for x in model])
     duration = time.perf_counter() - start;
                 
-    return None, None, duration
+    return None, None, duration, islands
