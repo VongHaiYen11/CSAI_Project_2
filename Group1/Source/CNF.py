@@ -1,8 +1,3 @@
-# ==========================================
-# FILE: CNF_udth.py
-# MÔ TẢ: Sinh CNF cho bài Hashiwokakero (Fix lỗi quản lý biến PBEnc)
-# ==========================================
-import itertools
 from pysat.pb import PBEnc
 from pysat.formula import CNF
 
@@ -148,22 +143,37 @@ def generate_geometry_constraints(bridges, var_map):
                 
     return clauses
 
+def remove_duplicate_clauses(cnf_clauses):
+    """
+    Loại bỏ clause trùng lặp.
+    Mỗi clause được sắp xếp các literal để đảm bảo nhận dạng trùng lặp.
+    """
+    seen = set()
+    unique_clauses = []
+
+    for cl in cnf_clauses:
+        cl_sorted = tuple(sorted(cl))
+        if cl_sorted not in seen:
+            seen.add(cl_sorted)
+            unique_clauses.append(cl)
+    
+    return unique_clauses
+
 def generate_cnf_clauses(matrix):
-    """Hàm tổng hợp chính"""
     islands = parse_board(matrix)
     bridges = find_potential_bridges(matrix, islands)
     var_map, reverse_map, last_bridge_id = create_variables(bridges)
     
     cnf = []
     
-    # 1. Sinh luật hình học (Chỉ dùng các biến cầu hiện có)
     geo_clauses = generate_geometry_constraints(bridges, var_map)
     cnf.extend(geo_clauses)
     
-    # 2. Sinh luật sức chứa (Có sinh thêm biến phụ)
     cap_clauses, final_num_vars = generate_capacity_constraints(
         islands, bridges, var_map, last_bridge_id
     )
     cnf.extend(cap_clauses)
+
+    cnf = remove_duplicate_clauses(cnf)
 
     return cnf, reverse_map, islands, bridges, var_map, final_num_vars

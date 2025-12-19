@@ -1,119 +1,157 @@
+# ==============================
+# COMPARISON: MANUAL CNF vs PySAT PBEnc
+# ==============================
 import itertools
 from pysat.pb import PBEnc
-from pysat.formula import CNF
 
-# ==========================================
-# CẤU TRÚC DỮ LIỆU CHUNG
-# ==========================================
+# --- Lặp lại class và hàm cơ bản từ CNF_udth ---
 class Island:
     def __init__(self, r, c, val):
-        self.r, self.c, self.val = r, c, val
+        self.r = r
+        self.c = c
+        self.val = val
         self.id = f"{r}_{c}"
+
     def __eq__(self, other):
         return isinstance(other, Island) and self.r == other.r and self.c == other.c
+
     def __hash__(self):
         return hash((self.r, self.c))
+
     def __repr__(self):
-        return f"({self.r},{self.c})v{self.val}"
+        return f"Island({self.r},{self.c}, val={self.val})"
 
 def parse_board(matrix):
-    return [Island(r, c, matrix[r][c]) for r in range(len(matrix)) 
-            for c in range(len(matrix[0])) if matrix[r][c] > 0]
+    islands = []
+    for r in range(len(matrix)):
+        for c in range(len(matrix[0])):
+            val = matrix[r][c]
+            if val > 0:
+                islands.append(Island(r, c, val))
+    return islands
 
 def find_potential_bridges(grid, islands):
-    rows, cols, bridges = len(grid), len(grid[0]), []
-    for start_node in islands:
-        r, c = start_node.r, start_node.c
-        for nc in range(c + 1, cols):
+    rows, cols = len(grid), len(grid[0])
+    bridges = []
+    for start in islands:
+        r, c = start.r, start.c
+        # Horizontal
+        for nc in range(c+1, cols):
             if grid[r][nc] != 0:
-                bridges.append((start_node, next(i for i in islands if i.r == r and i.c == nc), 'H'))
+                end = next(i for i in islands if i.r == r and i.c == nc)
+                bridges.append((start, end, 'H'))
                 break
-        for nr in range(r + 1, rows):
+        # Vertical
+        for nr in range(r+1, rows):
             if grid[nr][c] != 0:
-                bridges.append((start_node, next(i for i in islands if i.r == nr and i.c == c), 'V'))
+                end = next(i for i in islands if i.r == nr and i.c == c)
+                bridges.append((start, end, 'V'))
                 break
     return bridges
 
-def create_vars(bridges):
-    var_map, counter = {}, 1
-    for b in bridges:
-        var_map[(b[0], b[1], 1)] = counter; counter += 1
-        var_map[(b[0], b[1], 2)] = counter; counter += 1
-    return var_map, counter - 1
+def create_variables(bridges):
+    var_map, reverse_map = {}, {}
+    counter = 1
+    for u, v, _ in bridges:
+        var_map[(u,v,1)] = counter
+        reverse_map[counter] = (u,v,1)
+        counter += 1
+        var_map[(u,v,2)] = counter
+        reverse_map[counter] = (u,v,2)
+        counter += 1
+    return var_map, reverse_map, counter-1
 
-# ==========================================
-# VERSION 1: FIXED (Có quản lý top_id)
-# ==========================================
-def gen_v1_fixed(matrix):
-    islands = parse_board(matrix)
-    bridges = find_potential_bridges(matrix, islands)
-    var_map, last_id = create_vars(bridges)
-    cnf_clauses = []
-    
-    # 1. Capacity with top_id management
-    curr_id = last_id
-    for island in islands:
-        lits = [var_map[(u, v, k)] for (u, v, _) in bridges for k in [1, 2] if u == island or v == island]
-        pb = PBEnc.equals(lits=lits, bound=island.val, top_id=curr_id, encoding=1)
-        cnf_clauses.extend(pb.clauses)
-        if pb.clauses:
-            curr_id = max(max(abs(lit) for lit in cls) for cls in pb.clauses)
-    
-    # 2. Geometry
-    for b in bridges:
-        cnf_clauses.append([-var_map[(b[0], b[1], 2)], var_map[(b[0], b[1], 1)]])
-    
-    return cnf_clauses, curr_id
+# --- Manual CNF function ---
+def exactly_k(vars_list, k):
+    clauses = []
+    n = len(vars_list)
 
-# ==========================================
-# VERSION 2: ORIGINAL (Không quản lý top_id)
-# ==========================================
-def gen_v2_original(matrix):
-    islands = parse_board(matrix)
-    bridges = find_potential_bridges(matrix, islands)
-    var_map, last_id = create_vars(bridges)
-    cnf_clauses = []
-    
-    # 1. Capacity WITHOUT top_id management
-    for island in islands:
-        lits = [var_map[(u, v, k)] for (u, v, _) in bridges for k in [1, 2] if u == island or v == island]
-        pb = PBEnc.equals(lits=lits, bound=island.val, encoding=1) # Thiếu top_id
-        cnf_clauses.extend(pb.clauses)
-    
-    # 2. Geometry
-    for b in bridges:
-        cnf_clauses.append([-var_map[(b[0], b[1], 2)], var_map[(b[0], b[1], 1)]])
-        
-    return cnf_clauses, "N/A (Broken)"
+    # Lower Bound (ít nhất k)
+    r = n - k + 1
+    if k > 0 and r > 0:
+        for combo in itertools.combinations(vars_list, r):
+            clauses.append(list(combo))
 
-# ==========================================
-# RUN TEST
-# ==========================================
-if __name__ == "__main__":
-    # Ma trận 3x3 đơn giản: Hai đảo (2) đối diện nhau
-    test_matrix = [
-        [2, 0, 2],
-        [0, 0, 0],
-        [0, 0, 0]
-    ]
+    # Upper Bound (nhiều nhất k)
+    if k < n:
+        for combo in itertools.combinations(vars_list, k + 1):
+            clauses.append([-x for x in combo])
+
+    return clauses
+
+def manual_capacity_clauses(islands, bridges, var_map):
+    clauses = []
+    for isl in islands:
+        connected = []
+        for u,v,_ in bridges:
+            if u==isl or v==isl:
+                connected.append(var_map[(u,v,1)])
+                connected.append(var_map[(u,v,2)])
+        k = isl.val
+        clauses.extend(exactly_k(connected, k))
+    return remove_duplicate_clauses(clauses)
+
+def remove_duplicate_clauses(cnf_clauses):
+    """
+    Loại bỏ clause trùng lặp.
+    Mỗi clause được sắp xếp các literal để đảm bảo nhận dạng trùng lặp.
+    """
+    seen = set()
+    unique_clauses = []
+
+    for cl in cnf_clauses:
+        cl_sorted = tuple(sorted(cl))
+        if cl_sorted not in seen:
+            seen.add(cl_sorted)
+            unique_clauses.append(cl)
     
-    print("=== SO SÁNH SINH CLAUSE HASHIWOKAKERO ===")
-    
-    c1, max_v1 = gen_v1_fixed(test_matrix)
-    c2, max_v2 = gen_v2_original(test_matrix)
-    
-    print(f"\n[V1 - FIXED]")
-    print(f"- Số lượng Clause: {len(c1)}")
-    print(f"- ID biến lớn nhất: {max_v1}")
-    print(f"- 5 Clause đầu tiên: {c1[:5]}")
-    
-    print(f"\n[V2 - ORIGINAL]")
-    print(f"- Số lượng Clause: {len(c2)}")
-    print(f"- ID biến lớn nhất: {max_v2}")
-    print(f"- 5 Clause đầu tiên: {c2[:5]}")
-    
-    print("\n--- PHÂN TÍCH ---")
-    if any(lit in [1, 2] for cls in c2 for lit in cls if abs(lit) > 2):
-        print("CẢNH BÁO: V2 đang sinh biến phụ trùng lặp với biến gốc (1, 2)!")
-    else:
-        print("V2 có thể may mắn chưa trùng, nhưng ID biến sẽ bị loạn khi map lớn.")
+    return unique_clauses
+
+# --- PySAT PBEnc function ---
+def pysat_capacity_clauses(islands, bridges, var_map):
+    from pysat.formula import CNF
+    cnf = []
+    top_id = max(var_map.values())
+    for isl in islands:
+        connected = []
+        for u,v,_ in bridges:
+            if u==isl or v==isl:
+                connected.append(var_map[(u,v,1)])
+                connected.append(var_map[(u,v,2)])
+        pb = PBEnc.equals(lits=connected, bound=isl.val, top_id=top_id, encoding=1)
+        print("Pb clause: ", pb.clauses)
+        cnf.extend(pb.clauses)
+        # Update top_id để tránh trùng biến phụ
+        for cl in pb.clauses:
+            for lit in cl:
+                top_id = max(top_id, abs(lit))
+    return remove_duplicate_clauses(cnf)
+
+# --- Example matrix ---
+matrix = [
+    [0, 2, 0],
+    [0, 0, 0],
+    [1, 0, 1]
+]
+
+# --- Generate variables ---
+islands = parse_board(matrix)
+bridges = find_potential_bridges(matrix, islands)
+var_map, reverse_map, num_vars = create_variables(bridges)
+
+# --- Manual CNF ---
+manual_cnf = manual_capacity_clauses(islands, bridges, var_map)
+
+# --- PySAT CNF ---
+pysat_cnf = pysat_capacity_clauses(islands, bridges, var_map)
+
+# --- Print results ---
+print("=== Manual CNF clauses ===")
+for cl in manual_cnf:
+    print(cl)
+print(f"Total manual clauses: {len(manual_cnf)}\n")
+
+print("=== PySAT PBEnc CNF clauses ===")
+for cl in pysat_cnf:
+    print(cl)
+print(f"Total PySAT clauses: {len(pysat_cnf)}")
