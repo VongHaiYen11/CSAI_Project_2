@@ -3,6 +3,9 @@
 # MÔ TẢ: Chỉ chứa cấu trúc dữ liệu và hàm sinh luật CNF
 # ==========================================
 import itertools
+from pysat.pb import PBEnc
+from pysat.formula import CNF
+
 
 class Island:
     def __init__(self, r, c, val):
@@ -102,19 +105,27 @@ def exactly_k(vars_list, k):
     return clauses
 
 def generate_capacity_constraints(islands, bridges, var_map):
-    clauses = []
+    cnf = CNF()
+
     for island in islands:
         connected_vars = []
-        for b in bridges:
-            u, v, _ = b
+
+        for (u, v, _) in bridges:
             if u == island or v == island:
                 connected_vars.append(var_map[(u, v, 1)])
                 connected_vars.append(var_map[(u, v, 2)])
-        
-        k = island.val
-        new_clauses = exactly_k(connected_vars, k)
-        clauses.extend(new_clauses)
-    return clauses
+
+        # Tổng số cầu nối vào đảo = giá trị trên đảo
+        pb = PBEnc.equals(
+            lits=connected_vars,
+            weights=[1] * len(connected_vars),
+            bound=island.val,
+            encoding='seqcounter'  # hoặc 'bdd', 'adder'
+        )
+
+        cnf.extend(pb.clauses)
+
+    return cnf.clauses
 
 def generate_geometry_constraints(bridges, var_map):
     clauses = []
@@ -177,5 +188,5 @@ def generate_cnf_clauses(matrix):
     #             id_h = var_map[(h[0], h[1], 1)]
     #             id_v = var_map[(v[0], v[1], 1)]
     #             clauses.append([-id_h, -id_v])
-                
+
     return cnf, reverse_map, islands, bridges, var_map, num_vars
