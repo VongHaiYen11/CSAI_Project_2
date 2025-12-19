@@ -1,11 +1,10 @@
 # ==========================================
 # FILE: CNF_udth.py
-# MÔ TẢ: Chỉ chứa cấu trúc dữ liệu và hàm sinh luật CNF
+# MÔ TẢ: Sinh CNF cho bài Hashiwokakero (Fix lỗi quản lý biến PBEnc)
 # ==========================================
 import itertools
 from pysat.pb import PBEnc
 from pysat.formula import CNF
-
 
 class Island:
     def __init__(self, r, c, val):
@@ -14,7 +13,6 @@ class Island:
         self.val = val # Số ghi trên đảo
         self.id = f"{r}_{c}" # ID định danh duy nhất (string)
 
-    # Cần 2 hàm này để dùng Island làm Key trong Dictionary (var_map)
     def __eq__(self, other):
         return isinstance(other, Island) and self.r == other.r and self.c == other.c
 
@@ -45,13 +43,12 @@ def find_potential_bridges(grid, islands):
     cols = len(grid[0])
     bridges = [] 
     
-    for i, start_node in enumerate(islands):
+    for start_node in islands:
         r, c = start_node.r, start_node.c
         
         # 1. Nhìn sang PHẢI (Horizontal)
         for nc in range(c + 1, cols):
             if grid[r][nc] != 0: 
-                # Tìm đảo đích có tọa độ (r, nc)
                 end_node = next(isl for isl in islands if isl.r == r and isl.c == nc)
                 bridges.append((start_node, end_node, 'H')) 
                 break 
@@ -59,11 +56,9 @@ def find_potential_bridges(grid, islands):
         # 2. Nhìn xuống DƯỚI (Vertical)
         for nr in range(r + 1, rows):
             if grid[nr][c] != 0: 
-                # Tìm đảo đích có tọa độ (nr, c)
                 end_node = next(isl for isl in islands if isl.r == nr and isl.c == c)
                 bridges.append((start_node, end_node, 'V')) 
                 break
-
     return bridges
 
 def create_variables(bridges):
@@ -89,55 +84,50 @@ def create_variables(bridges):
 # 3. SINH LUẬT CNF (CONSTRAINTS)
 # ==========================================
 
-def exactly_k(vars_list, k):
-    clauses = []
-    n = len(vars_list)
-    
-    # Lower Bound (Ít nhất k)
-    if k > 0:
-        for combo in itertools.combinations(vars_list, n - k + 1):
-            clauses.append(list(combo))
-    
-    # Upper Bound (Nhiều nhất k)
-    for combo in itertools.combinations(vars_list, k + 1):
-        clauses.append([-x for x in combo])
-        
-    return clauses
-
-def generate_capacity_constraints(islands, bridges, var_map):
-    cnf = CNF()
+def generate_capacity_constraints(islands, bridges, var_map, top_id):
+    """
+    Sửa lỗi quan trọng: Cập nhật top_id liên tục để tránh trùng biến phụ của PBEnc
+    """
+    cnf_clauses = []
+    current_max_id = top_id
 
     for island in islands:
         connected_vars = []
-
         for (u, v, _) in bridges:
             if u == island or v == island:
+                # Mỗi biến Bridge-1 đóng góp 1 đơn vị, Bridge-2 đóng góp 1 đơn vị
                 connected_vars.append(var_map[(u, v, 1)])
                 connected_vars.append(var_map[(u, v, 2)])
 
-        # Tổng số cầu nối vào đảo = giá trị trên đảo
+        # Tổng số biến True phải bằng island.val
         pb = PBEnc.equals(
             lits=connected_vars,
-            weights=[1] * len(connected_vars),
             bound=island.val,
-            encoding='seqcounter'  # hoặc 'bdd', 'adder'
+            top_id=current_max_id,
+            encoding=1 # Sequential Counter
         )
+        
+        cnf_clauses.extend(pb.clauses)
+        
+        # Cập nhật current_max_id dựa trên các biến phụ mới sinh ra
+        if pb.clauses:
+            for clause in pb.clauses:
+                for lit in clause:
+                    current_max_id = max(current_max_id, abs(lit))
 
-        cnf.extend(pb.clauses)
-
-    return cnf.clauses
+    return cnf_clauses, current_max_id
 
 def generate_geometry_constraints(bridges, var_map):
     clauses = []
     
-    # 1. Luật phụ: Cầu 2 cần Cầu 1 (-Var2 v Var1)
+    # 1. Luật phụ: Cầu 2 tồn tại thì Cầu 1 BẮT BUỘC phải tồn tại (-Var2 v Var1)
     for b in bridges:
         u, v, _ = b
-        var1 = var_map[(u, v, 1)]
-        var2 = var_map[(u, v, 2)]
-        clauses.append([-var2, var1]) 
+        v1 = var_map[(u, v, 1)]
+        v2 = var_map[(u, v, 2)]
+        clauses.append([-v2, v1]) 
 
-    # 2. Luật Cấm Cắt Nhau
+    # 2. Luật Cấm Cắt Nhau (Crossing)
     horiz_bridges = [b for b in bridges if b[2] == 'H']
     vert_bridges = [b for b in bridges if b[2] == 'V']
 
@@ -149,44 +139,31 @@ def generate_geometry_constraints(bridges, var_map):
             v_c = v[0].c
             v_r1, v_r2 = sorted((v[0].r, v[1].r))
             
-            # Cắt nhau nếu Dọc nằm giữa Ngang VÀ Ngang nằm giữa Dọc
+            # Kiểm tra giao cắt hình chữ thập
             if (h_c1 < v_c < h_c2) and (v_r1 < h_r < v_r2):
-                id_h = var_map[(h[0], h[1], 1)]
-                id_v = var_map[(v[0], v[1], 1)]
-                clauses.append([-id_h, -id_v])
+                id_h1 = var_map[(h[0], h[1], 1)]
+                id_v1 = var_map[(v[0], v[1], 1)]
+                # Không thể có ít nhất 1 cầu ngang VÀ ít nhất 1 cầu dọc cùng lúc
+                clauses.append([-id_h1, -id_v1])
                 
     return clauses
 
 def generate_cnf_clauses(matrix):
-    """Hàm tổng hợp để sinh toàn bộ luật CNF"""
+    """Hàm tổng hợp chính"""
     islands = parse_board(matrix)
     bridges = find_potential_bridges(matrix, islands)
-    var_map, reverse_map, num_vars = create_variables(bridges)
+    var_map, reverse_map, last_bridge_id = create_variables(bridges)
     
     cnf = []
-    cnf.extend(generate_capacity_constraints(islands, bridges, var_map))
-    cnf.extend(generate_geometry_constraints(bridges, var_map))
+    
+    # 1. Sinh luật hình học (Chỉ dùng các biến cầu hiện có)
+    geo_clauses = generate_geometry_constraints(bridges, var_map)
+    cnf.extend(geo_clauses)
+    
+    # 2. Sinh luật sức chứa (Có sinh thêm biến phụ)
+    cap_clauses, final_num_vars = generate_capacity_constraints(
+        islands, bridges, var_map, last_bridge_id
+    )
+    cnf.extend(cap_clauses)
 
-    # # 2. Luật Geometry (Cầu 2 cần Cầu 1)
-    # for b in bridges:
-    #     u, v, _ = b
-    #     var1 = var_map[(u, v, 1)]
-    #     var2 = var_map[(u, v, 2)]
-    #     clauses.append([-var2, var1]) 
-
-    # # 3. Luật Crossing (Cấm cắt nhau)
-    # horiz_bridges = [b for b in bridges if b[2] == 'H']
-    # vert_bridges = [b for b in bridges if b[2] == 'V']
-    # for h in horiz_bridges:
-    #     for v in vert_bridges:
-    #         h_r = h[0].r
-    #         h_c1, h_c2 = sorted((h[0].c, h[1].c))
-    #         v_c = v[0].c
-    #         v_r1, v_r2 = sorted((v[0].r, v[1].r))
-            
-    #         if (h_c1 < v_c < h_c2) and (v_r1 < h_r < v_r2):
-    #             id_h = var_map[(h[0], h[1], 1)]
-    #             id_v = var_map[(v[0], v[1], 1)]
-    #             clauses.append([-id_h, -id_v])
-
-    return cnf, reverse_map, islands, bridges, var_map, num_vars
+    return cnf, reverse_map, islands, bridges, var_map, final_num_vars

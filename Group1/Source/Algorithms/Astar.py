@@ -57,15 +57,51 @@ class AStar:
         
         print(f"Setup done: {len(self.islands)} islands.")
 
-        # 2. CHUẨN BỊ INPUT
+        # 2. CHUẨN BỊ INPUT - Create bridge pairs for A* search
+        # Mỗi cầu (giữa 2 đảo) có 2 biến:
+        #   var1: tồn tại ít nhất 1 cầu
+        #   var2: tồn tại cầu thứ 2
         self.bridge_pairs = []
         seen = set()
         for b in self.bridges:
             u, v, _ = b
+            # Use sorted island IDs as key to avoid duplicates
             key = tuple(sorted((u.id, v.id)))
-            if key in seen: continue
+            if key in seen: 
+                continue
             seen.add(key)
-            self.bridge_pairs.append((self.var_map[(u, v, 1)], self.var_map[(u, v, 2)]))
+            # Get the two variables for this bridge pair
+            var1 = self.var_map.get((u, v, 1))
+            var2 = self.var_map.get((u, v, 2))
+            if var1 is not None and var2 is not None:
+                self.bridge_pairs.append((var1, var2))
+
+        # 2.a. Tiền xử lý cho ràng buộc SỨC CHỨA (degree của đảo)
+        # Với mỗi đảo, lưu danh sách các (var1, var2) của những cầu nối tới nó.
+        self.island_incident = {isl.id: [] for isl in self.islands}
+        self.island_demand = {isl.id: isl.val for isl in self.islands}
+        for (u, v, _) in self.bridges:
+            v1 = self.var_map[(u, v, 1)]
+            v2 = self.var_map[(u, v, 2)]
+            self.island_incident[u.id].append((v1, v2))
+            self.island_incident[v.id].append((v1, v2))
+
+        # 2.b. Tiền xử lý cho ràng buộc KHÔNG CẮT NHAU
+        # Tạo danh sách các cặp cầu (ngang, dọc) cắt nhau.
+        horiz_bridges = [b for b in self.bridges if b[2] == 'H']
+        vert_bridges = [b for b in self.bridges if b[2] == 'V']
+        self.crossing_pairs = []
+        for h in horiz_bridges:
+            for v in vert_bridges:
+                h_r = h[0].r
+                h_c1, h_c2 = sorted((h[0].c, h[1].c))
+                v_c = v[0].c
+                v_r1, v_r2 = sorted((v[0].r, v[1].r))
+                # Kiểm tra giao cắt hình chữ thập
+                if (h_c1 < v_c < h_c2) and (v_r1 < h_r < v_r2):
+                    id_h1 = self.var_map[(h[0], h[1], 1)]
+                    id_v1 = self.var_map[(v[0], v[1], 1)]
+                    self.crossing_pairs.append((id_h1, id_v1))
 
         counter = itertools.count() 
 
@@ -97,6 +133,9 @@ class AStar:
 
             # Goal Check
             if state["index"] >= len(self.bridge_pairs):
+                # All bridge decisions made. Because every expanded state has already
+                # passed `_evaluate_state` (CNF consistency w.r.t bridge variables),
+                # we only need to check connectivity here.
                 if state["components"] == 1:
                     duration = time.perf_counter() - start_time
                     self.solution_vars = state["1"]
@@ -137,29 +176,78 @@ class AStar:
                     heapq.heappush(pq, (new_state["fx"], -new_state["index"], next(counter), new_state))
 
         print("No solution found.")
-        return None, (time.time() - start_time)
+        return None, (time.perf_counter() - start_time)
 
     def _evaluate_state(self, state):
-        # 1. Map assignment & Check CNF (Hard Constraint)
+        # 1. Map assignment (chỉ cho biến cầu var1, var2)
         assignment = {}
-        for x in state["1"]: assignment[x] = True
-        for x in state["0"]: assignment[x] = False
+        for x in state["1"]: 
+            assignment[x] = True
+        for x in state["0"]: 
+            assignment[x] = False
+        #
+        # 2. RÀNG BUỘC HÌNH HỌC: KHÔNG CẮT NHAU
+        # Nếu 2 cầu (1 ngang, 1 dọc) cắt nhau thì không được cùng tồn tại.
+        for h1, v1 in self.crossing_pairs:
+            if assignment.get(h1) and assignment.get(v1):
+                return False
 
-        for clause in self.clauses:
-            violated = True
-            satisfied = False
-            for lit in clause:
-                val = assignment.get(abs(lit))
-                if val is None: 
-                    violated = False
-                    continue
-                if (lit > 0 and val) or (lit < 0 and not val):
-                    satisfied = True
-                    violated = False
-                    break
-            if violated: return False
+        # 3. RÀNG BUỘC SỨC CHỨA (degree) CHO MỖI ĐẢO
+        # Với mỗi đảo, ta tính:
+        #   - min_deg: bậc nhỏ nhất có thể (nếu sau này chọn tối thiểu)
+        #   - max_deg: bậc lớn nhất có thể (nếu sau này chọn tối đa)
+        # Nếu min_deg > demand hoặc max_deg < demand => vô nghiệm, cắt tỉa.
+        for isl in self.islands:
+            isl_id = isl.id
+            demand = self.island_demand[isl_id]
+            min_deg = 0
+            max_deg = 0
 
-        # 2. Heuristic (Chỉ dùng DSU cho nhanh)
+            for v1, v2 in self.island_incident[isl_id]:
+                a1 = assignment.get(v1)
+                a2 = assignment.get(v2)
+
+                if a1 is True:
+                    if a2 is True:
+                        # Hai cầu đều chắc chắn tồn tại
+                        min_deg += 2
+                        max_deg += 2
+                    elif a2 is False:
+                        # Chỉ có 1 cầu
+                        min_deg += 1
+                        max_deg += 1
+                    else:  # a2 is None
+                        # Đã có 1 cầu, có thể thêm cầu 2
+                        min_deg += 1
+                        max_deg += 2
+                elif a1 is False:
+                    if a2 is True:
+                        # Vi phạm: CNF đã mã hoá v2 -> v1, nên không thể v1=0, v2=1
+                        return False
+                    elif a2 is False:
+                        # Không có cầu nào ở cặp này
+                        # min_deg += 0, max_deg += 0
+                        pass
+                    else:  # a2 is None
+                        # v1=0 thì v2 không thể là 1 trong tương lai (do v2->v1)
+                        # nên min=max=0 ở cặp này
+                        pass
+                else:  # a1 is None
+                    if a2 is True:
+                        # Nếu v2=1 thì bắt buộc v1=1, nhưng v1 chưa set -> coi là không hợp lệ
+                        return False
+                    elif a2 is False:
+                        # Chưa biết v1, nhưng có thể chọn v1=1 sau này -> tối đa +1
+                        max_deg += 1
+                    else:  # cả hai đều None
+                        # Có thể chọn 0,1 hoặc 2 cầu sau này -> [0,2]
+                        max_deg += 2
+
+            if min_deg > demand or max_deg < demand:
+                return False
+
+        # 4. Heuristic (Chỉ dùng DSU cho nhanh)
+        # Only use bridge variables (those in reverse_map) for connectivity
         dsu = DSU(self.islands)
         for var_id in state["1"]:
             if var_id in self.reverse_map:
