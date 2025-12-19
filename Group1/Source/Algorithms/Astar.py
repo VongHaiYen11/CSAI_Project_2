@@ -18,22 +18,48 @@ except ImportError as e:
     raise e
 
 # ============================================================
-# HELPER CLASS: DSU (Giữ nguyên - Vì nó nhanh)
+# HELPER FUNCTION: BFS Connectivity Check
 # ============================================================
-class DSU:
-    def __init__(self, islands):
-        self.parent = {isl.id: isl.id for isl in islands}
-        self.num_components = len(islands)
-    def find(self, i):
-        if self.parent[i] != i: self.parent[i] = self.find(self.parent[i])
-        return self.parent[i]
-    def union(self, i, j):
-        root_i, root_j = self.find(i), self.find(j)
-        if root_i != root_j:
-            self.parent[root_i] = root_j
-            self.num_components -= 1
-            return True
-        return False
+def check_connectivity_bfs(islands, active_bridge_vars, reverse_map):
+    """
+    Check connectivity using BFS.
+    Returns (num_components, is_connected)
+    """
+    if not islands:
+        return 1, True
+    
+    # Build adjacency list
+    adj = {isl.id: [] for isl in islands}
+    for var_id in active_bridge_vars:
+        if var_id in reverse_map:
+            u, v, _, _ = reverse_map[var_id]
+            if v.id not in adj[u.id]:
+                adj[u.id].append(v.id)
+            if u.id not in adj[v.id]:
+                adj[v.id].append(u.id)
+    
+    # BFS to count connected components
+    visited = set()
+    num_components = 0
+    
+    for isl in islands:
+        if isl.id in visited:
+            continue
+        
+        # Start BFS from this unvisited island
+        num_components += 1
+        queue = [isl.id]
+        visited.add(isl.id)
+        
+        while queue:
+            curr = queue.pop(0)  # BFS: use queue (FIFO)
+            for neighbor in adj[curr]:
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    queue.append(neighbor)
+    
+    is_connected = (num_components == 1)
+    return num_components, is_connected
 
 # ============================================================
 # CLASS A* (Đã sửa logic g(x))
@@ -246,21 +272,19 @@ class AStar:
             if min_deg > demand or max_deg < demand:
                 return False
 
-        # 4. Heuristic (Chỉ dùng DSU cho nhanh)
+        # 4. Heuristic (Sử dụng BFS để kiểm tra liên thông)
         # Only use bridge variables (those in reverse_map) for connectivity
-        dsu = DSU(self.islands)
-        for var_id in state["1"]:
-            if var_id in self.reverse_map:
-                u, v, _, _ = self.reverse_map[var_id]
-                dsu.union(u.id, v.id)
+        num_components, _ = check_connectivity_bfs(
+            self.islands, state["1"], self.reverse_map
+        )
         
         # Tính h(x)
         # Weight = 10 (Hoặc 5) để cân bằng với g(x)
         # Nếu g(x) tăng 1, mà h(x) giảm 10 -> Thuật toán thấy "hời", sẽ đi tiếp.
         heuristic_weight = 10 
-        hx = (dsu.num_components - 1) * heuristic_weight
+        hx = (num_components - 1) * heuristic_weight
         
-        return [hx, dsu.num_components]
+        return [hx, num_components]
 
     def get_result_matrix(self):
         # (Giữ nguyên code cũ của bạn)

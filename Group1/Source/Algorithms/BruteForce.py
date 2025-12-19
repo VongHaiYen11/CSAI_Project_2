@@ -108,17 +108,17 @@ class BruteForce:
                 adj[ia].append(ib)
                 adj[ib].append(ia)
         
-        # DFS kiểm tra liên thông
+        # BFS kiểm tra liên thông
         visited = [False] * n
-        stack = [0]
+        queue = [0]
         visited[0] = True
         
-        while stack:
-            u = stack.pop()
+        while queue:
+            u = queue.pop(0)  # BFS: use queue (FIFO)
             for v in adj[u]:
                 if not visited[v]:
                     visited[v] = True
-                    stack.append(v)
+                    queue.append(v)
         
         return all(visited)
     
