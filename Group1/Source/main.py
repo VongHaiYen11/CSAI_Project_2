@@ -1,62 +1,42 @@
-"""
-HASHIWOKAKERO SOLVER - MAIN COMPARISON & VERIFICATION
-=====================================================
-Run & compare multiple solvers against Ground Truth Solutions
-"""
-
-import os
-import time
-import json
 import argparse
+import json
+import os
 import sys
+import time
 
-# Import các thuật toán (Giữ nguyên của bạn)
-from Algorithms.BruteForce import BruteForce
-from Algorithms.Backtracking import Backtracking
-from Algorithms.Astar import AStar
-from Algorithms.pySAT import pySAT
+from Algorithms.astar import AStar
+from Algorithms.backtracking import Backtracking
+from Algorithms.bruteforce import BruteForce
+from Algorithms.pysat import PySAT
 
-
-# ============================================================
-# CONFIG
-# ============================================================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INPUT_FOLDER = os.path.join(BASE_DIR, "Inputs")
 OUTPUT_FOLDER = os.path.join(BASE_DIR, "Outputs")
-# Folder chứa đáp án đúng (Ground Truth)
-SOLUTIONS_FOLDER = os.path.join(BASE_DIR, "Solutions") 
+SOLUTIONS_FOLDER = os.path.join(BASE_DIR, "Solutions")
 
-# RESULTS_FILE = os.path.join(BASE_DIR, "comparison_results.json")
+ALGORITHM_NAMES = ["BruteForce", "Backtracking", "AStar", "PySAT"]
+DEFAULT_TIMEOUT = 60  # seconds
 
-ALGO_NAMES = ["BruteForce", "Backtracking", "AStar", "PySAT"]
-
-TIMEOUT = 60  # seconds
-
+# Create necessary directories
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
-# Tạo folder Solutions nếu chưa có (để bạn bỏ file đáp án vào)
-os.makedirs(SOLUTIONS_FOLDER, exist_ok=True) 
+os.makedirs(SOLUTIONS_FOLDER, exist_ok=True)
 
-for algo in ALGO_NAMES:
-    os.makedirs(os.path.join(OUTPUT_FOLDER, algo), exist_ok=True)
+for algo_name in ALGORITHM_NAMES:
+    os.makedirs(os.path.join(OUTPUT_FOLDER, algo_name), exist_ok=True)
 
-
-# ============================================================
-# IO HELPERS & FORMATTING
-# ============================================================
 
 def read_input(path):
+    """Read puzzle input from a file."""
     matrix = []
     with open(path, "r") as f:
         for line in f:
             matrix.append([int(x.strip()) for x in line.split(",")])
     return matrix
 
+
 def read_solution(path):
-    """
-    Đọc file đáp án mẫu từ folder Solutions.
-    Giả định file đáp án có format giống file output: [ "1", "-", "2" ]
-    """
+    """Read expected solution from a file. Assumes solution file has format matching output."""
     if not os.path.exists(path):
         return None
     
@@ -64,8 +44,7 @@ def read_solution(path):
     try:
         with open(path, "r") as f:
             for line in f:
-                # Loại bỏ ngoặc vuông và parse thành list
-                # Ví dụ line: [ "1" , "-" , "2" ]
+                # Remove brackets and parse into list
                 clean_line = line.strip().replace("[", "").replace("]", "")
                 row = [x.strip().replace('"', '').replace("'", "") for x in clean_line.split(",")]
                 grid.append(row)
@@ -73,7 +52,9 @@ def read_solution(path):
     except Exception:
         return None
 
+
 def write_output(folder_name, file_name, content):
+    """Write algorithm output to a file."""
     folder_path = os.path.join(OUTPUT_FOLDER, folder_name)
     file_path = os.path.join(folder_path, file_name)
     
@@ -84,127 +65,117 @@ def write_output(folder_name, file_name, content):
             for row in content:
                 f.write("[ " + " , ".join(f'"{x}"' for x in row) + " ]\n")
 
+
 def print_separator(char="-", length=85):
+    """Print a separator line for formatting output."""
     print(char * length)
 
 
-# ============================================================
-# RUNNERS (GIỮ NGUYÊN)
-# ============================================================
-
 def run_bruteforce(matrix, timeout):
+    """Run the brute force algorithm."""
     try:
         solver = BruteForce(matrix)
         result, duration = solver.solve(timeout=timeout)
 
         if duration >= timeout:
-             return None, None, "TIMEOUT"
+            return None, None, "TIMEOUT"
 
-        if result is None: return None, None, "NO SOLUTION"
+        if result is None:
+            return None, None, "NO SOLUTION"
+        
         return result, duration * 1000, "SUCCESS"
-    except Exception as e: return None, None, f"ERROR: {e}"
+    except Exception as e:
+        return None, None, f"ERROR: {e}"
+
 
 def run_backtracking(matrix, timeout):
+    """Run the backtracking algorithm."""
     try:
         solver = Backtracking(matrix)
         result, duration = solver.solve(timeout=timeout)
 
         if duration >= timeout:
-             return None, None, "TIMEOUT"
+            return None, None, "TIMEOUT"
         
-        if result is None: return None, None, "NO SOLUTION"
+        if result is None:
+            return None, None, "NO SOLUTION"
+        
         return result, duration * 1000, "SUCCESS"
-    except Exception as e: return None, None, f"ERROR: {e}"
+    except Exception as e:
+        return None, None, f"ERROR: {e}"
+
 
 def run_astar(matrix, timeout):
+    """Run the A* algorithm."""
     try:
         solver = AStar()
         result, duration = solver.solve(matrix)
 
         if duration >= timeout:
-             return None, None, "TIMEOUT"
+            return None, None, "TIMEOUT"
         
-        if result is None: return None, None, "NO SOLUTION"
+        if result is None:
+            return None, None, "NO SOLUTION"
+        
         return result, duration * 1000, "SUCCESS"
-    except Exception as e: return None, None, f"ERROR: {e}"
+    except Exception as e:
+        return None, None, f"ERROR: {e}"
+
 
 def run_pysat(matrix, timeout):
+    """Run the PySAT algorithm."""
     try:
-        model, reverse_map, duration, islands = pySAT(matrix)
+        solver = PySAT()
+        result, duration = solver.solve(matrix)
 
-        if duration > timeout: return None, None, "TIMEOUT"
-        if not model: return None, None, "NO SOLUTION"
+        if duration > timeout:
+            return None, None, "TIMEOUT"
+        if result is None:
+            return None, None, "NO SOLUTION"
 
-        n = len(matrix)
-        grid = [["0"] * n for _ in range(n)]
-        # islands = parse_board(matrix)
-        for isl in islands: grid[isl.r][isl.c] = str(isl.val)
+        return result, duration * 1000, "SUCCESS"
+    except Exception as e:
+        return None, None, f"ERROR: {e}"
 
-        active_vars = set(v for v in model if v > 0)
-        bridge_map = {}
-        for var, (u, v, cnt, d) in reverse_map.items():
-            if var not in active_vars: continue
-            key = (u, v)
-            if key not in bridge_map: bridge_map[key] = {"has1": False, "has2": False, "dir": d}
-            if cnt == 1: bridge_map[key]["has1"] = True
-            elif cnt == 2: bridge_map[key]["has2"] = True
-
-        for (u, v), info in bridge_map.items():
-            count = 2 if info["has2"] else 1 if info["has1"] else 0
-            if count == 0: continue
-            
-            d = info["dir"]
-            char = "=" if d == "H" and count == 2 else \
-                   "-" if d == "H" else \
-                   "$" if count == 2 else "|"
-
-            if d == "H":
-                for c in range(u.c + 1, v.c): grid[u.r][c] = char
-            else:
-                for r in range(u.r + 1, v.r): grid[r][u.c] = char
-
-        return grid, duration * 1000, "SUCCESS"
-    except Exception as e: return None, None, f"ERROR: {e}"
-
-
-# ============================================================
-# SELECT BEST
-# ============================================================
 
 def select_best(results):
+    """Select the best algorithm result based on correctness and speed. Priority order: PySAT > AStar > Backtracking > BruteForce."""
     priority = ["PySAT", "AStar", "Backtracking", "BruteForce"]
-    # Chỉ chọn những thuật toán chạy thành công VÀ kết quả đúng (CORRECT)
-    valid = {k: v for k, v in results.items() if v["status"] == "SUCCESS" and v.get("check") == "CORRECT"}
     
-    # Nếu không có cái nào đúng, thử tìm cái SUCCESS (dù check WRONG hoặc ko có check)
+    # First preference: successful algorithms with correct results
+    valid = {
+        k: v for k, v in results.items()
+        if v["status"] == "SUCCESS" and v.get("check") == "CORRECT"
+    }
+    
+    # Fallback: any successful algorithm
     if not valid:
         valid = {k: v for k, v in results.items() if v["status"] == "SUCCESS"}
 
-    if not valid: return None, None, None
+    if not valid:
+        return None, None, None
 
+    # Find fastest
     fastest = min(valid, key=lambda k: valid[k]["time"])
-    t_fast = valid[fastest]["time"]
+    fastest_time = valid[fastest]["time"]
 
+    # Return highest priority algorithm within 10% of fastest time
     for algo in priority:
-        if algo in valid and valid[algo]["time"] <= 1.1 * t_fast:
+        if algo in valid and valid[algo]["time"] <= 1.1 * fastest_time:
             return algo, valid[algo]["result"], valid[algo]["time"]
 
     return fastest, valid[fastest]["result"], valid[fastest]["time"]
 
 
-# ============================================================
-# MAIN LOGIC
-# ============================================================
-
-def compare_algorithms(input_file):
+def compare_algorithms(input_file, timeout):
+    """Compare all algorithms on a single input file."""
     print(f"\nProcessing {input_file}...", end="", flush=True)
 
     matrix = read_input(os.path.join(INPUT_FOLDER, input_file))
     n = len(matrix)
-    num_islands = sum(1 for r in matrix for x in r if x > 0)
+    num_islands = sum(1 for row in matrix for x in row if x > 0)
 
-    # --- ĐỌC FILE ĐÁP ÁN (SOLUTION) ---
-    # Quy ước tên file: input-01.txt -> solution-01.txt
+    # Read expected solution (convention: input-01.txt -> solution-01.txt)
     sol_file = input_file.replace("input-", "solution-")
     expected_grid = read_solution(os.path.join(SOLUTIONS_FOLDER, sol_file))
     
@@ -220,25 +191,25 @@ def compare_algorithms(input_file):
 
     for name, runner in runners.items():
         out_name = input_file.replace("input-", "output-")
-        check_status = "N/A" # Trạng thái kiểm tra đáp án
+        check_status = "N/A"
         
-        # --- TRƯỜNG HỢP 1: SIZE LIMIT (SKIPPED) ---
+        # Case 1: Algorithm skipped due to size limit
         if runner is None:
             res, t, status = None, None, "SKIPPED"
             time_str = "-"
-            res_display = "NO SOLUTION" 
+            res_display = "NO SOLUTION"
             note = "Size Limit"
             write_output(name, out_name, "NO SOLUTION: Grid size too large (Size Limit).")
 
-        # --- TRƯỜNG HỢP 2: CHẠY THUẬT TOÁN ---
+        # Case 2: Run algorithm
         else:
-            res, t, status = runner(matrix, timeout=TIMEOUT)
+            res, t, status = runner(matrix, timeout=timeout)
             
             if status == "SUCCESS":
                 time_str = f"{t:.2f}"
                 write_output(name, out_name, res)
                 
-                # --- LOGIC KIỂM TRA ĐÁP ÁN (MỚI) ---
+                # Verify result against expected solution
                 if expected_grid is None:
                     res_display = "SAVED"
                     note = "No Solution File"
@@ -258,25 +229,23 @@ def compare_algorithms(input_file):
                 res_display = "NO SOLUTION"
                 note = "Time Limit"
                 check_status = "TIMEOUT"
-                write_output(name, out_name, f"NO SOLUTION: Timeout (> {TIMEOUT}s).")
+                write_output(name, out_name, f"NO SOLUTION: Timeout (> {timeout}s).")
                 
-            else: # NO SOLUTION hoặc ERROR
+            else:  # NO SOLUTION or ERROR
                 time_str = f"{t:.2f}" if t is not None else "-"
                 res_display = "NO SOLUTION"
                 note = "Unsolvable"
                 check_status = "FAILED"
                 write_output(name, out_name, "NO SOLUTION: No valid arrangement found.")
 
-        # Lưu thêm check_status vào results để dùng cho select_best
+        # Store result for best selection
         results[name] = {"result": res, "time": t, "status": status, "check": check_status}
         table_rows.append(f"| {name:<15} | {time_str:<15} | {res_display:<15} | {note:<18} |")
 
-    # Xóa dòng "Processing..."
+    # Clear processing message
     print("\r" + " " * 50 + "\r", end="", flush=True)
 
-    # ==========================
-    # IN BẢNG KẾT QUẢ CỦA TEST
-    # ==========================
+    # Print results table
     print_separator("=")
     print(f" TESTING: {input_file}")
     if expected_grid:
@@ -312,41 +281,38 @@ def compare_algorithms(input_file):
     }
 
 
-# ============================================================
-# ENTRY POINT
-# ============================================================
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+def main():
+    """Main entry point for the comparison script."""
+    parser = argparse.ArgumentParser(
+        description="Compare Hashiwokakero solving algorithms"
+    )
     parser.add_argument("--test", type=str, help="Run specific input file")
     parser.add_argument("--all", action="store_true", help="Run all inputs")
-    parser.add_argument("--timeout", type=int, default=TIMEOUT)
+    parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT,
+                       help=f"Timeout in seconds (default: {DEFAULT_TIMEOUT})")
     args = parser.parse_args()
 
-    TIMEOUT = args.timeout
+    timeout = args.timeout
     summary_data = []
 
     if args.test:
-        data = compare_algorithms(args.test)
+        data = compare_algorithms(args.test, timeout)
         summary_data.append(data)
     else:
-        # Lấy danh sách input
+        # Get list of input files
         if os.path.exists(INPUT_FOLDER):
-            input_files = sorted([f for f in os.listdir(INPUT_FOLDER) if f.startswith("input-")])
+            input_files = sorted([
+                f for f in os.listdir(INPUT_FOLDER) if f.startswith("input-")
+            ])
             if not input_files:
                 print(f"No input files found in {INPUT_FOLDER}")
-            for f in input_files:
-                data = compare_algorithms(f)
+            for filename in input_files:
+                data = compare_algorithms(filename, timeout)
                 summary_data.append(data)
         else:
             print(f"Input folder not found: {INPUT_FOLDER}")
 
-    # with open(RESULTS_FILE, "w") as fp:
-    #     json.dump(summary_data, fp, indent=2, default=str)
-
-    # ============================================================
-    # FINAL SUMMARY TABLE
-    # ============================================================
+    # Print final summary table
     print("\n\n")
     print_separator("=", 90)
     print(f"{'FINAL SUMMARY REPORT':^90}")
@@ -358,19 +324,21 @@ if __name__ == "__main__":
     for item in summary_data:
         fname = item["input"]
         size = item["size"]
-        isl = item["islands"]
+        num_isl = item["islands"]
         best = item["best_algo"] if item["best_algo"] else "NONE"
         
         t_val = item.get("best_time")
         t_str = f"{t_val:.2f}" if t_val is not None else "-"
 
-        # Nếu best algo là NONE do tất cả đều sai kết quả
         if best == "NONE":
             t_str = "-"
 
-        print(f"| {fname:<15} | {size:<8} | {isl:<8} | {best:<15} | {t_str:<15} |")
+        print(f"| {fname:<15} | {size:<8} | {num_isl:<8} | {best:<15} | {t_str:<15} |")
 
     print_separator("-", 90)
-    # print(f"Report saved to: {RESULTS_FILE}")
     print(f"Outputs saved in: {OUTPUT_FOLDER}")
     print(f"Expected Solutions read from: {SOLUTIONS_FOLDER}")
+
+
+if __name__ == "__main__":
+    main()

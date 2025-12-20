@@ -1,11 +1,24 @@
+import os
+import sys
 import time
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.append(parent_dir)
+from is_intersect import is_intersect
+from connectivity import check_connectivity_from_edges
+
+
 class TimeoutException(Exception):
-    """Raised when backtracking exceeds time limit"""
+    """Exception raised when algorithm exceeds time limit."""
     pass
 
+
 class Backtracking:
+    """Backtracking solver for Hashiwokakero puzzles using depth-first search with pruning."""
+    
     def __init__(self, matrix):
+        """Initialize backtracking solver."""
         self.matrix = matrix
         self.n = len(matrix)
 
@@ -29,12 +42,11 @@ class Backtracking:
         # All possible bridge edges
         self.edges = self.generate_edges()
 
-        # Current solution: (a, b, count)
+        # Current solution: (start_pos, end_pos, bridge_count)
         self.solution = []
 
-    # ---------------------------------------------------------
-    # Generate all possible edges (right and down only)
     def generate_edges(self):
+        """Generate all possible bridge edges going right or down."""
         edges = []
         island_pos = {}
         for x, y, _ in self.islands:
@@ -59,100 +71,27 @@ class Backtracking:
 
         return edges
 
-    # ---------------------------------------------------------
-    # Check if two bridges intersect
-    def is_intersect(self, a1, b1, a2, b2):
-        # Share endpoint -> not intersect
-        if a1 == a2 or a1 == b2 or b1 == a2 or b1 == b2:
-            return False
-
-        h1 = (a1[0] == b1[0])
-        h2 = (a2[0] == b2[0])
-
-        # Same direction -> cannot intersect
-        if h1 == h2:
-            return False
-
-        # Ensure first bridge is horizontal
-        if not h1:
-            return self.is_intersect(a2, b2, a1, b1)
-
-        row = a1[0]
-        col = a2[1]
-
-        y1 = min(a1[1], b1[1])
-        y2 = max(a1[1], b1[1])
-
-        x1 = min(a2[0], b2[0])
-        x2 = max(a2[0], b2[0])
-
-        return (y1 < col < y2) and (x1 < row < x2)
-
-    # ---------------------------------------------------------
-    # Check if graph is connected
-    def is_connected(self):
-        if len(self.islands) == 0:
-            return True
-
-        n = len(self.islands)
-        adj = [[] for _ in range(n)]
-
-        # Build mapping (position -> index)
-        pos_to_idx = {}
-        for i in range(n):
-            x, y, _ = self.islands[i]
-            pos_to_idx[(x, y)] = i
-
-        # Fill adjacency from placed bridges
-        for a, b, count in self.solution:
-            if count == 0:
-                continue
-            ia = pos_to_idx[a]
-            ib = pos_to_idx[b]
-            adj[ia].append(ib)
-            adj[ib].append(ia)
-
-        # BFS using queue
-        visited = [False] * n
-        queue = [0]
-        visited[0] = True
-
-        while queue:
-            u = queue.pop(0)  # BFS: use queue (FIFO)
-            for v in adj[u]:
-                if not visited[v]:
-                    visited[v] = True
-                    queue.append(v)
-
-        # Check all visited
-        for v in visited:
-            if not v:
-                return False
-        return True
-
-    # ---------------------------------------------------------
-    # Check if we can place bridge without crossing
     def can_add_bridge(self, a, b):
+        """Check if a bridge can be placed without crossing existing bridges."""
         for x, y, _ in self.solution:
-            if self.is_intersect(a, b, x, y):
+            if is_intersect(a, b, x, y):
                 return False
         return True
 
-    # ---------------------------------------------------------
-    # Place / remove bridges
     def place_bridge(self, a, b, count):
+        """Place a bridge in the current solution."""
         self.current_degree[a] += count
         self.current_degree[b] += count
         self.solution.append((a, b, count))
 
     def remove_bridge(self, a, b, count):
+        """Remove the last bridge from the current solution."""
         self.current_degree[a] -= count
         self.current_degree[b] -= count
         self.solution.pop()
 
-    # ---------------------------------------------------------
-    # Backtracking over edges
     def backtracking_edge(self, idx):
+        """Recursive backtracking over bridge edges."""
         self.nodes_visited += 1
 
         # Check timeout every ~1000 nodes or 1s
@@ -162,9 +101,6 @@ class Backtracking:
                 raise TimeoutException()
 
             if elapsed - self.last_log_time >= 5:
-                # print(f"Progress: {self.nodes_visited:,} nodes | "
-                #       f"Depth: {idx}/{len(self.edges)} | "
-                #       f"Time: {elapsed:.2f}s")
                 self.last_log_time = elapsed
         
         # All edges processed
@@ -174,7 +110,7 @@ class Backtracking:
                 if self.current_degree[(x, y)] != need:
                     return False
             # Check connectivity
-            return self.is_connected()
+            return check_connectivity_from_edges(self.islands, self.solution)
 
         a, b = self.edges[idx]
         va = self.island_value[a]
@@ -200,9 +136,8 @@ class Backtracking:
 
         return False
 
-    # ---------------------------------------------------------
-    # Solve the puzzle
     def solve(self, timeout=300):
+        """Solve the puzzle using backtracking."""
         print("\n=== BACKTRACKING ===")
         print(f"Edges: {len(self.edges)} | Islands: {len(self.islands)}")
         print(f"Timeout: {timeout}s")
@@ -234,9 +169,8 @@ class Backtracking:
             print(f"Nodes visited: {self.nodes_visited:,}")
             return None, duration
 
-    # ---------------------------------------------------------
-    # Build final matrix with bridges
     def build_output_matrix(self):
+        """Build output matrix from solution."""
         out = [["0" for _ in range(self.n)] for _ in range(self.n)]
 
         # Place islands
@@ -255,74 +189,3 @@ class Backtracking:
                     out[x][col] = "|" if count == 1 else "$"
 
         return out
-
-
-# ------------------- RUN -------------------
-# matrix = [
-#     [0, 2, 0, 5, 0, 0, 2],
-#     [0, 0, 0, 0, 0, 0, 0],
-#     [4, 0, 2, 0, 2, 0, 4],
-#     [0, 0, 0, 0, 0, 0, 0],
-#     [0, 1, 0, 5, 0, 2, 0],
-#     [0, 0, 0, 0, 0, 0, 0],
-#     [4, 0, 0, 0, 0, 0, 3],
-# ]
-
-# solver = Backtracking(matrix)
-# result, runtime = solver.solve()
-
-# if result is None:
-#     print("No solution")
-# else:
-#     for row in result:
-#         print(row)
-
-# print("Time:", runtime)
-
-# if __name__ == "__main__":
-#     # Test case nhỏ
-#     matrix_small = [
-#         [0, 2, 0, 5, 0, 0, 2],
-#         [0, 0, 0, 0, 0, 0, 0],
-#         [4, 0, 2, 0, 2, 0, 4],
-#         [0, 0, 0, 0, 0, 0, 0],
-#         [0, 1, 0, 5, 0, 2, 0],
-#         [0, 0, 0, 0, 0, 0, 0],
-#         [4, 0, 0, 0, 0, 0, 3],
-#     ]
-    
-#     # Test case lớn
-#     matrix_large = [
-#         [3, 0, 2, 0, 3, 0, 2],
-#         [0, 0, 0, 0, 0, 0, 0],
-#         [2, 0, 4, 0, 3, 0, 3],
-#         [0, 0, 0, 0, 0, 0, 0],
-#         [3, 0, 2, 0, 2, 0, 2],
-#         [0, 0, 0, 0, 0, 0, 0],
-#         [2, 0, 3, 0, 2, 0, 2],
-#     ]
-    
-#     print("Testing with SMALL matrix:")
-#     solver1 = Backtracking(matrix_small)
-#     result1, runtime1 = solver1.solve(timeout=60)  # 60s timeout for test
-    
-#     if result1:
-#         print("\n--- RESULT MATRIX ---")
-#         for row in result1:
-#             formatted = "[ " + " , ".join([f'"{x}"' for x in row]) + " ]"
-#             print(formatted)
-#     else:
-#         print("\nNo solution found (or timeout).")
-    
-#     print("\n" + "="*60)
-#     print("\nTesting with LARGE matrix:")
-#     solver2 = Backtracking(matrix_large)
-#     result2, runtime2 = solver2.solve(timeout=10)  # 10s timeout for demo
-    
-#     if result2:
-#         print("\n--- RESULT MATRIX ---")
-#         for row in result2:
-#             formatted = "[ " + " , ".join([f'"{x}"' for x in row]) + " ]"
-#             print(formatted)
-#     else:
-#         print("\nNo solution found (or timeout).")

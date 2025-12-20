@@ -1,67 +1,87 @@
-# ==========================================
-# FILE: HashiSolver.py
-# MÔ TẢ: Chứa hàm solve_hashi và logic check liên thông
-# ==========================================
-from pysat.solvers import Glucose3
 import os
 import sys
 import time
 
+from pysat.solvers import Glucose3
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
+from cnf import CNFGenerator
+from connectivity import check_connectivity
 
-from CNF import generate_cnf_clauses
 
-def check_connectivity(model, islands, reverse_map):
-    adj = {isl.id: [] for isl in islands}
-    active_vars = [x for x in model if x > 0]
+class PySAT:
+    """PySAT solver for Hashiwokakero puzzles using Glucose3 SAT solver."""
     
-    for var_id in active_vars:
-        if var_id in reverse_map:
-            u, v, _, _ = reverse_map[var_id]
-            # Chỉ thêm cạnh nếu chưa tồn tại (tránh add 2 lần do cầu đôi)
-            if v.id not in adj[u.id]: adj[u.id].append(v.id)
-            if u.id not in adj[v.id]: adj[v.id].append(u.id)
-            
-    # BFS
-    if not islands: return True
-    start_id = islands[0].id
-    queue = [start_id]
-    visited = {start_id}
+    def __init__(self):
+        """Initialize PySAT solver."""
+        self.solution_vars = None
+        self.matrix = None
     
-    while queue:
-        curr = queue.pop(0)
-        for neighbor in adj[curr]:
-            if neighbor not in visited:
-                visited.add(neighbor)
-                queue.append(neighbor)
+    def solve(self, matrix):
+        """Solve Hashiwokakero puzzle using SAT solver with Glucose3."""
+        self.matrix = matrix
+        
+        # Generate CNF clauses from puzzle
+        cnf_generator = CNFGenerator()
+        clauses, reverse_map, islands, bridges, var_map, num_vars = cnf_generator.generate_cnf_clauses(matrix)
+        
+        # Solve with SAT solver
+        start = time.perf_counter()
+        with Glucose3(bootstrap_with=clauses) as solver:
+            while solver.solve():
+                model = solver.get_model()
                 
-    return len(visited) == len(islands)
-
-def pySAT(matrix):
-    """
-    Hàm gọi Solver:
-    1. Lấy luật từ CNF_udth
-    2. Đưa vào Glucose3
-    3. Loop kiểm tra liên thông
-    """
-    # Lấy clauses và map từ file CNF
-    clauses, reverse_map, islands, bridges, var_map, num_vars = generate_cnf_clauses(matrix)
+                # Check connectivity constraint
+                if check_connectivity(model, islands, reverse_map):
+                    duration = time.perf_counter() - start
+                    return self.build_output_matrix(model, reverse_map, islands, bridges, var_map), duration
+                else:
+                    # Block this solution and continue searching
+                    solver.add_clause([-x for x in model])
+        
+        duration = time.perf_counter() - start
+        return None, duration
     
-    # Khởi tạo Solver
-    start = time.perf_counter()
-    with Glucose3(bootstrap_with=clauses) as solver:
-        while solver.solve():
-            model = solver.get_model()
+    def build_output_matrix(self, model, reverse_map, islands, bridges, var_map):
+        """Build output matrix from SAT model."""
+        n = len(self.matrix)
+        grid = [["0"] * n for _ in range(n)]
+        
+        # Place islands
+        for island in islands:
+            grid[island.r][island.c] = str(island.val)
+        
+        # Process active bridge variables
+        active_vars = set(v for v in model if v > 0)
+        bridge_map = {}
+        
+        for var, (u, v, cnt, d) in reverse_map.items():
+            if var not in active_vars:
+                continue
+            key = (u, v)
+            if key not in bridge_map:
+                bridge_map[key] = {"has1": False, "has2": False, "dir": d}
+            if cnt == 1:
+                bridge_map[key]["has1"] = True
+            elif cnt == 2:
+                bridge_map[key]["has2"] = True
+        
+        # Draw bridges
+        for (u, v), info in bridge_map.items():
+            count = 2 if info["has2"] else 1 if info["has1"] else 0
+            if count == 0:
+                continue
             
-            # Kiểm tra liên thông (Logic đồ thị)
-            if check_connectivity(model, islands, reverse_map):
-                duration = time.perf_counter() - start;
-                return model, reverse_map, duration, islands
+            direction = info["dir"]
+            if direction == "H":
+                char = "=" if count == 2 else "-"
+                for c in range(u.c + 1, v.c):
+                    grid[u.r][c] = char
             else:
-                # Nếu không liên thông, chặn nghiệm này và tìm tiếp
-                solver.add_clause([-x for x in model])
-    duration = time.perf_counter() - start;
-                
-    return None, None, duration, islands
+                char = "$" if count == 2 else "|"
+                for r in range(u.r + 1, v.r):
+                    grid[r][u.c] = char
+        
+        return grid

@@ -1,50 +1,38 @@
-import time
 import itertools
-import signal
-from contextlib import contextmanager
+import os
+import sys
+import time
 
-class TimeoutException(Exception):
-    """Exception raised when timeout occurs"""
-    pass
-
-@contextmanager
-def time_limit(seconds):
-    """Context manager for timeout using signal"""
-    def signal_handler(signum, frame):
-        raise TimeoutException("Timed out!")
-    
-    # Set the signal handler
-    signal.signal(signal.SIGALRM, signal_handler)
-    signal.alarm(seconds)
-    
-    try:
-        yield
-    finally:
-        signal.alarm(0)  # Disable the alarm
-
-
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.append(parent_dir)
+from is_intersect import is_intersect
+from connectivity import check_connectivity_from_edges
 class BruteForce:
+    """Brute force solver for Hashiwokakero puzzles exploring all possible bridge configurations."""
+    
     def __init__(self, matrix):
+        """Initialize brute force solver."""
         self.matrix = matrix
         self.n = len(matrix)
         
-        # Danh sách đảo: (row, col, value)
+        # List of islands: (row, col, value)
         self.islands = []
         for i in range(self.n):
             for j in range(self.n):
                 if matrix[i][j] > 0:
                     self.islands.append((i, j, matrix[i][j]))
         
-        # Tạo tất cả các cạnh có thể nối
+        # Generate all possible bridge edges
         self.edges = self.generate_edges()
-        
+    
     def generate_edges(self):
-        """Tìm tất cả các cặp đảo có thể nối (chỉ nhìn phải và xuống dưới)"""
+        """Find all possible bridge edges going right or down."""
         edges = []
         island_pos = {(x, y): True for x, y, _ in self.islands}
         
         for x, y, _ in self.islands:
-            # Nhìn sang phải
+            # Look right (horizontal)
             c = y + 1
             while c < self.n:
                 if (x, c) in island_pos:
@@ -52,7 +40,7 @@ class BruteForce:
                     break
                 c += 1
             
-            # Nhìn xuống dưới
+            # Look down (vertical)
             r = x + 1
             while r < self.n:
                 if (r, y) in island_pos:
@@ -62,70 +50,10 @@ class BruteForce:
         
         return edges
     
-    def is_intersect(self, a1, b1, a2, b2):
-        """Kiểm tra 2 cầu có cắt nhau không"""
-        # Cùng endpoint → không cắt
-        if a1 == a2 or a1 == b2 or b1 == a2 or b1 == b2:
-            return False
-        
-        h1 = (a1[0] == b1[0])  # Bridge 1 ngang?
-        h2 = (a2[0] == b2[0])  # Bridge 2 ngang?
-        
-        # Cùng hướng → không cắt
-        if h1 == h2:
-            return False
-        
-        # Đảm bảo bridge 1 là ngang
-        if not h1:
-            return self.is_intersect(a2, b2, a1, b1)
-        
-        # Bridge 1 ngang (hàng row), Bridge 2 dọc (cột col)
-        row = a1[0]
-        col = a2[1]
-        
-        y1, y2 = sorted([a1[1], b1[1]])
-        x1, x2 = sorted([a2[0], b2[0]])
-        
-        # Cắt nếu cột của bridge 2 nằm giữa 2 đầu bridge 1
-        # VÀ hàng của bridge 1 nằm giữa 2 đầu bridge 2
-        return (y1 < col < y2) and (x1 < row < x2)
-    
-    def is_connected_with_config(self, config):
-        """Kiểm tra liên thông với configuration cho trước"""
-        n = len(self.islands)
-        adj = [[] for _ in range(n)]
-        
-        # Map vị trí đảo → index
-        pos_to_idx = {}
-        for i, (x, y, _) in enumerate(self.islands):
-            pos_to_idx[(x, y)] = i
-        
-        # Build adjacency list từ config
-        for i, (a, b) in enumerate(self.edges):
-            if config[i] > 0:  # Có cầu
-                ia = pos_to_idx[a]
-                ib = pos_to_idx[b]
-                adj[ia].append(ib)
-                adj[ib].append(ia)
-        
-        # BFS kiểm tra liên thông
-        visited = [False] * n
-        queue = [0]
-        visited[0] = True
-        
-        while queue:
-            u = queue.pop(0)  # BFS: use queue (FIFO)
-            for v in adj[u]:
-                if not visited[v]:
-                    visited[v] = True
-                    queue.append(v)
-        
-        return all(visited)
-    
     def is_valid_config(self, config):
-        """Kiểm tra một configuration có hợp lệ không"""
+        """Check if a configuration is valid (island degrees, no crossing bridges, connectivity)."""
         
-        # 1. Kiểm tra mỗi đảo có đúng số cầu theo yêu cầu
+        # 1. Check each island has correct number of bridges
         degree = {(x, y): 0 for x, y, _ in self.islands}
         
         for i, (a, b) in enumerate(self.edges):
@@ -137,7 +65,7 @@ class BruteForce:
             if degree[(x, y)] != required:
                 return False
         
-        # 2. Kiểm tra cầu không cắt nhau
+        # 2. Check no bridges cross
         for i in range(len(self.edges)):
             if config[i] == 0:
                 continue
@@ -146,33 +74,37 @@ class BruteForce:
                     continue
                 a1, b1 = self.edges[i]
                 a2, b2 = self.edges[j]
-                if self.is_intersect(a1, b1, a2, b2):
+                if is_intersect(a1, b1, a2, b2):
                     return False
         
-        # 3. Kiểm tra liên thông
-        return self.is_connected_with_config(config)
+        # 3. Check connectivity
+        edges = []
+        for i, (a, b) in enumerate(self.edges):
+            if config[i] > 0:
+                edges.append((a, b, config[i]))
+        return check_connectivity_from_edges(self.islands, edges)
     
     def build_output(self, config):
-        """Xây dựng ma trận output từ configuration"""
+        """Build output matrix from configuration."""
         out = [["0" for _ in range(self.n)] for _ in range(self.n)]
         
-        # Đặt đảo
+        # Place islands
         for x, y, v in self.islands:
             out[x][y] = str(v)
         
-        # Vẽ cầu
+        # Draw bridges
         for i, (a, b) in enumerate(self.edges):
             count = config[i]
             if count == 0:
                 continue
             
-            # Ngang
+            # Horizontal
             if a[0] == b[0]:
                 row = a[0]
                 symbol = "-" if count == 1 else "="
                 for y in range(min(a[1], b[1]) + 1, max(a[1], b[1])):
                     out[row][y] = symbol
-            # Dọc
+            # Vertical
             else:
                 col = a[1]
                 symbol = "|" if count == 1 else "$"
@@ -182,10 +114,7 @@ class BruteForce:
         return out
     
     def solve(self, timeout=300):
-        """
-        Brute Force với timeout (chạy được trên Windows)
-        timeout: thời gian tối đa (giây)
-        """
+        """Solve puzzle using brute force search exploring all possible bridge configurations."""
         start_time = time.perf_counter()
 
         num_edges = len(self.edges)
@@ -203,22 +132,17 @@ class BruteForce:
         for config in itertools.product([0, 1, 2], repeat=num_edges):
             checked += 1
 
-            # Timeout check (Windows-safe)
+            # Timeout check
             now = time.perf_counter()
             if now - start_time >= timeout:
                 elapsed = now - start_time
-                progress = (checked / total_configs) * 100
-                # print(f"\n⏱ TIMEOUT after {elapsed:.2f}s")
-                # print(f"Checked {checked:,}/{total_configs:,} configurations ({progress:.4f}%)")
                 return None, elapsed
 
-            # Log progress mỗi 5 giây hoặc mỗi 10000 configs
+            # Log progress every 5 seconds or every 10000 configs
             if checked % 10000 == 0 or (now - last_log) >= 5.0:
                 elapsed = now - start_time
                 progress = (checked / total_configs) * 100
                 rate = checked / elapsed if elapsed > 0 else 0
-                # print(f"Progress: {checked:,}/{total_configs:,} ({progress:.4f}%) | "
-                #     f"Time: {elapsed:.2f}s | Rate: {rate:.0f} configs/s")
                 last_log = now
 
             if self.is_valid_config(config):
@@ -231,54 +155,3 @@ class BruteForce:
         print(f"\n No solution found after checking all {total_configs:,} configurations")
         print(f"Time: {elapsed:.6f}s")
         return None, elapsed
-
-
-# # =============== MAIN TEST ===============
-
-# if __name__ == "__main__":
-#     # Test case nhỏ
-#     matrix_small = [
-#         [0, 2, 0, 5, 0, 0, 2],
-#         [0, 0, 0, 0, 0, 0, 0],
-#         [4, 0, 2, 0, 2, 0, 4],
-#         [0, 0, 0, 0, 0, 0, 0],
-#         [0, 1, 0, 5, 0, 2, 0],
-#         [0, 0, 0, 0, 0, 0, 0],
-#         [4, 0, 0, 0, 0, 0, 3],
-#     ]
-    
-#     # Test case lớn (sẽ timeout)
-#     matrix_large = [
-#         [3, 0, 2, 0, 3, 0, 2],
-#         [0, 0, 0, 0, 0, 0, 0],
-#         [2, 0, 4, 0, 3, 0, 3],
-#         [0, 0, 0, 0, 0, 0, 0],
-#         [3, 0, 2, 0, 2, 0, 2],
-#         [0, 0, 0, 0, 0, 0, 0],
-#         [2, 0, 3, 0, 2, 0, 2],
-#     ]
-    
-#     print("Testing with SMALL matrix:")
-#     solver1 = BruteForce(matrix_small)
-#     result1, runtime1 = solver1.solve(timeout=60)  # 60s timeout for test
-    
-#     if result1:
-#         print("\n--- RESULT MATRIX ---")
-#         for row in result1:
-#             formatted = "[ " + " , ".join([f'"{x}"' for x in row]) + " ]"
-#             print(formatted)
-#     else:
-#         print("\nNo solution found (or timeout).")
-    
-#     print("\n" + "="*60)
-#     print("\nTesting with LARGE matrix:")
-#     solver2 = BruteForce(matrix_large)
-#     result2, runtime2 = solver2.solve(timeout=10)  # 10s timeout for demo
-    
-#     if result2:
-#         print("\n--- RESULT MATRIX ---")
-#         for row in result2:
-#             formatted = "[ " + " , ".join([f'"{x}"' for x in row]) + " ]"
-#             print(formatted)
-#     else:
-#         print("\nNo solution found (or timeout).")
