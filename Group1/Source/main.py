@@ -23,7 +23,7 @@ from Algorithms.pySAT import pySAT
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INPUT_FOLDER = os.path.join(BASE_DIR, "Inputs")
-OUTPUT_FOLDER = os.path.join(BASE_DIR, "Output")
+OUTPUT_FOLDER = os.path.join(BASE_DIR, "Outputs")
 # Folder chứa đáp án đúng (Ground Truth)
 SOLUTIONS_FOLDER = os.path.join(BASE_DIR, "Solutions") 
 

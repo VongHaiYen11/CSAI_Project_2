@@ -112,16 +112,22 @@ def generate_capacity_constraints(islands, bridges, var_map, top_id):
 
     return cnf_clauses, current_max_id
 
-def generate_geometry_constraints(bridges, var_map):
+def generate_bridge_dependency_constraints(bridges, var_map):
+    """
+    Luật phụ: Cầu 2 tồn tại thì Cầu 1 BẮT BUỘC phải tồn tại (-Var2 v Var1)
+    Nghĩa là: nếu var2 = True thì var1 phải = True
+    """
     clauses = []
-    
-    # 1. Luật phụ: Cầu 2 tồn tại thì Cầu 1 BẮT BUỘC phải tồn tại (-Var2 v Var1)
     for b in bridges:
         u, v, _ = b
         v1 = var_map[(u, v, 1)]
         v2 = var_map[(u, v, 2)]
-        clauses.append([-v2, v1]) 
+        clauses.append([-v2, v1])  # -v2 v v1 means: if v2 then v1
+    return clauses
 
+def generate_crossing_constraints(bridges, var_map):
+    clauses = []
+    
     # 2. Luật Cấm Cắt Nhau (Crossing)
     horiz_bridges = [b for b in bridges if b[2] == 'H']
     vert_bridges = [b for b in bridges if b[2] == 'V']
@@ -166,9 +172,15 @@ def generate_cnf_clauses(matrix):
     
     cnf = []
     
-    geo_clauses = generate_geometry_constraints(bridges, var_map)
+    # 1. Luật phụ: Cầu 2 phụ thuộc vào Cầu 1
+    dep_clauses = generate_bridge_dependency_constraints(bridges, var_map)
+    cnf.extend(dep_clauses)
+    
+    # 2. Luật hình học: Cấm cắt nhau
+    geo_clauses = generate_crossing_constraints(bridges, var_map)
     cnf.extend(geo_clauses)
     
+    # 3. Luật sức chứa: Mỗi đảo có đúng số cầu yêu cầu
     cap_clauses, final_num_vars = generate_capacity_constraints(
         islands, bridges, var_map, last_bridge_id
     )
