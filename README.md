@@ -13,18 +13,18 @@ This is a project in the **Introduction to Artificial Intelligence** course at t
 ## 📑 Table of Contents
 
 - [Overview](#-overview)
-- [Project Description](#-project-description)
-- [Project Structure](#-project-structure)
-- [Features](#-features)
-- [Requirements](#-requirements)
-- [Installation](#-installation)
-- [How to Use](#-how-to-use)
-- [Input Format](#-input-format)
-- [Output Format](#-output-format)
-- [Algorithms](#-algorithms)
-- [Results](#-results)
-- [Notes](#-notes)
-- [Authors](#-authors)
+- [Project Description](#--project-description)
+- [Project Structure](#--project-structure)
+- [Features](#--features)
+- [Requirements](#--requirements)
+- [Installation](#--installation)
+- [How to Use](#--how-to-use)
+- [Input Format](#--input-format)
+- [Output Format](#--output-format)
+- [Algorithms](#--algorithms)
+- [Results](#--results)
+- [Notes](#--notes)
+- [Authors](#--authors)
 
 ## 📖 Overview
 
