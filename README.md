@@ -39,6 +39,7 @@ The bridges must follow certain criteria:
 
 ```
 23120039_23120108_23120145/
+├── Docs/                     # Project documentation and reports
 ├── Source/
 │   ├── Algorithms/
 │   │   ├── astar.py          # A* search algorithm implementation
@@ -56,8 +57,9 @@ The bridges must follow certain criteria:
 │   ├── cnf.py               # CNF generation for SAT solving
 │   ├── connectivity.py      # Connectivity checking utilities
 │   ├── is_intersect.py      # Bridge intersection detection
-│   └── requirements.txt     # Python dependencies
-└── README.md               # This file
+│   ├── requirements.txt     # Python dependencies
+│   └── README.txt           # Running instructions
+└── README.md
 ```
 
 ## ✨ Features
