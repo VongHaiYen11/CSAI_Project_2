@@ -37,7 +37,7 @@ Hashiwokakero, also known as Bridges or Hashi, is a logic puzzle that challenges
     │
     3 ═══════════ 2
 
-## 📋 Project Description
+## <a id="project-description"></a> 📋 Project Description
 
 This project presents a comprehensive Hashiwokakero puzzle solver that implements and compares multiple solving algorithms. The puzzle is played on a rectangular grid where some cells contain numbered islands (values from 1 to 8), representing the required number of bridge connections, while the remaining cells are empty. Our solver employs various algorithmic approaches, including Conjunctive Normal Form (CNF) logic, to automatically connect all islands by drawing bridges that satisfy the puzzle's constraints.
 
@@ -50,7 +50,7 @@ The bridges must follow certain criteria:
 - The number of bridges connected to each island must match the number on that island.
 - The bridges must connect the islands into a single connected group.
 
-## 📁 Project Structure
+## <a id="project-structure"></a> 📁 Project Structure
 
 ```
 23120039_23120108_23120145/
@@ -65,7 +65,6 @@ The bridges must follow certain criteria:
 │   │   ├── input-01.txt      # Test case 1
 │   │   ├── input-02.txt      # Test case 2
 │   │   ├── ...               # Test cases 3-10
-│   │   └── ScriptInput.py    # Input generation script
 │   ├── Outputs/              # Algorithm outputs organized by algorithm
 │   │   ├── AStar/            # A* algorithm solutions
 │   │   ├── Backtracking/     # Backtracking algorithm solutions
@@ -85,7 +84,7 @@ The bridges must follow certain criteria:
 └── README.md                 # Project documentation (this file)
 ```
 
-## ✨ Features
+## <a id="features"></a> ✨ Features
 
 - **Multiple Algorithm Implementations**: Four different solving approaches
 - **Performance Comparison**: Automated benchmarking and timing
@@ -93,15 +92,17 @@ The bridges must follow certain criteria:
 - **Timeout Handling**: Configurable time limits for each algorithm
 - **Comprehensive Reporting**: Detailed comparison tables and summaries
 
-## 📦 Requirements
+## <a id="requirements"></a> 📦 Requirements
 
 - **Python** 3.7+
 - **Required packages** (see `requirements.txt`):
   - `numpy >= 1.20.0`
+  - `matplotlib`
+  - `tabulate`
   - `pysat`
   - `python-sat[pblib]`
 
-## 🚀 Installation
+## <a id="installation"></a> 🚀 Installation
 
 ### Step 1: Navigate to Source Directory
 ```bash
@@ -119,7 +120,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## 💻 How to Use
+## <a id="how-to-use"></a> 💻 How to Use
 
 ### Run a Single Test Case
 
@@ -150,7 +151,7 @@ python main.py --all --timeout 120
 
 *Note: `120` is just an example (representing 120 seconds). You can specify any positive integer value. The default timeout is **300 seconds** if not specified.*
 
-## 📥 Input Format
+## <a id="input-format"></a> 📥 Input Format
 
 Input files are located in the `Inputs/` directory. Each file contains a comma-separated grid where:
 
@@ -168,7 +169,7 @@ Input files are located in the `Inputs/` directory. Each file contains a comma-s
 4,0,0,0,0,0,3
 ```
 
-## 📤 Output Format
+## <a id="output-format"></a> 📤 Output Format
 
 Solutions are saved in the `Outputs/` directory, organized by algorithm. Each output file contains the solved puzzle grid where:
 
@@ -186,12 +187,13 @@ Solutions are saved in the `Outputs/` directory, organized by algorithm. Each ou
 Source/Outputs/AStar/output-01.txt
 ```
 
-## 🧮 Algorithms
+## <a id="algorithms"></a> 🧮 Algorithms
 
 ### 1. Brute Force
 - Exhaustively explores all possible bridge configurations
 - Only runs on small grids (≤ 9x9) due to exponential complexity
-- Guaranteed to find a solution if one exists
+- For grids larger than 9x9, the result will show "NO SOLUTION" with note "Size Limit"
+- Guaranteed to find a solution if one exists (for grids ≤ 9x9)
 
 ### 2. Backtracking
 - Depth-first search with pruning
@@ -208,7 +210,7 @@ Source/Outputs/AStar/output-01.txt
 - Uses constraint programming techniques
 - Often the fastest for complex puzzles
 
-## 📊 Results
+## <a id="results"></a> 📊 Results
 
 The program generates:
 
@@ -225,14 +227,14 @@ All results are saved in the `Source/Tables_and_Charts/` directory:
 - `test_{number}_result.txt` - Detailed results for each test case
 - `final_summary.txt` - Comprehensive performance summary
 
-## 📝 Notes
+## <a id="notes"></a> 📝 Notes
 
-- Brute Force is automatically skipped for grids larger than 9x9
-- Algorithms that exceed the timeout are marked as "NO SOLUTION" with the note "Time Limit"
-- Solutions are verified against expected results in the `Solutions/` directory when available
-- All outputs are saved automatically for later review
+- **Brute Force Size Limit**: For grids larger than 9x9, Brute Force is automatically skipped and will show "NO SOLUTION" with the note "Size Limit" in the results table
+- **Timeout Handling**: Algorithms that exceed the timeout are marked as "NO SOLUTION" with the note "Time Limit"
+- **Solution Verification**: Solutions are verified against expected results in the `Solutions/` directory when available
+- **Automatic Saving**: All outputs are saved automatically for later review
 
-## 👥 Authors
+## <a id="authors"></a> 👥 Authors
 
 **Group 1 - Class 23TN**
 

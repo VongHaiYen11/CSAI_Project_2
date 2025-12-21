@@ -1,1 +1,1 @@
-NO SOLUTION: Timeout (> 60s).
+NO SOLUTION: Timeout (> 300s).
