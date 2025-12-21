@@ -9,6 +9,24 @@
 
 This is a project in the **Introduction to Artificial Intelligence** course at the Faculty of Information Technology, University of Science, Vietnam National University - Ho Chi Minh City. This project implements and compares multiple algorithms for solving **Hashiwokakero (Bridges)** puzzles, evaluating four different solving approaches: A* Search, and PySAT (SAT-based solving), Brute Force, Backtracking.
 
+
+## 📑 Table of Contents
+
+- [Overview](#overview)
+- [Project Description](#project-description)
+- [Project Structure](#project-structure)
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [How to Use](#how-to-use)
+- [Input Format](#input-format)
+- [Output Format](#output-format)
+- [Algorithms](#algorithms)
+- [Results](#results)
+- [Algorithm Selection](#algorithm-selection)
+- [Notes](#notes)
+- [Authors](#authors)
+
 ## 📖 Overview
 
 Hashiwokakero, also known as Bridges or Hashi, is a logic puzzle that challenges players to connect numbered islands with a specific number of bridges while following a set of simple rules. Published by Nikoli, this puzzle requires strategic thinking and careful planning to ensure all islands are interconnected without exceeding the allowed number of bridges per island. The game has gained popularity worldwide under different names, such as Ai-Ki-Ai in France, Denmark, the Netherlands, and Belgium. With its elegant design and logical depth, Hashiwokakero offers an engaging challenge for puzzle enthusiasts of all skill levels.
@@ -23,8 +41,6 @@ Hashiwokakero, also known as Bridges or Hashi, is a logic puzzle that challenges
 ## 📋 Project Description
 
 This project presents a comprehensive Hashiwokakero puzzle solver that implements and compares multiple solving algorithms. The puzzle is played on a rectangular grid where some cells contain numbered islands (values from 1 to 8), representing the required number of bridge connections, while the remaining cells are empty. Our solver employs various algorithmic approaches, including Conjunctive Normal Form (CNF) logic, to automatically connect all islands by drawing bridges that satisfy the puzzle's constraints.
-
-### Bridge Rules
 
 The bridges must follow certain criteria:
 
