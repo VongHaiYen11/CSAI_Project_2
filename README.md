@@ -61,20 +61,28 @@ The bridges must follow certain criteria:
 │   │   ├── backtracking.py   # Backtracking with pruning
 │   │   ├── bruteforce.py     # Brute force exhaustive search
 │   │   └── pysat.py          # SAT-based solving using PySAT
-│   ├── Inputs/               # Test input files (input-01.txt to input-10.txt)
+│   ├── Inputs/               # Test input files
+│   │   ├── input-01.txt      # Test case 1
+│   │   ├── input-02.txt      # Test case 2
+│   │   ├── ...               # Test cases 3-10
+│   │   └── ScriptInput.py    # Input generation script
 │   ├── Outputs/              # Algorithm outputs organized by algorithm
-│   │   ├── AStar/
-│   │   ├── Backtracking/
-│   │   ├── BruteForce/
-│   │   └── PySAT/
+│   │   ├── AStar/            # A* algorithm solutions
+│   │   ├── Backtracking/     # Backtracking algorithm solutions
+│   │   ├── BruteForce/       # Brute force algorithm solutions
+│   │   └── PySAT/            # PySAT algorithm solutions
 │   ├── Solutions/            # Expected solutions for verification
-│   ├── main.py              # Main comparison script
-│   ├── cnf.py               # CNF generation for SAT solving
-│   ├── connectivity.py      # Connectivity checking utilities
-│   ├── is_intersect.py      # Bridge intersection detection
-│   ├── requirements.txt     # Python dependencies
-│   └── README.txt           # Running instructions
-└── README.md
+│   │   ├── solution-01.txt   # Expected solution for test 1
+│   │   ├── solution-02.txt   # Expected solution for test 2
+│   │   └── ...               # Expected solutions for tests 3-10
+│   ├── Tables_and_Charts/    # Performance analysis and visualization
+│   ├── main.py               # Main comparison script
+│   ├── cnf.py                # CNF generation for SAT solving
+│   ├── connectivity.py       # Connectivity checking utilities
+│   ├── is_intersect.py       # Bridge intersection detection
+│   ├── requirements.txt      # Python dependencies
+│   └── README.txt            # Running instructions
+└── README.md                 # Project documentation (this file)
 ```
 
 ## ✨ Features
@@ -140,7 +148,7 @@ Set a custom timeout (in seconds) for algorithms:
 python main.py --all --timeout 120
 ```
 
-*Note: `120` is just an example (representing 120 seconds). You can specify any positive integer value. The default timeout is **60 seconds** if not specified.*
+*Note: `120` is just an example (representing 120 seconds). You can specify any positive integer value. The default timeout is **300 seconds** if not specified.*
 
 ## 📥 Input Format
 
@@ -207,6 +215,15 @@ The program generates:
 - **Per-test comparison tables**: Shows execution time, result status, and correctness for each algorithm
 - **Final summary report**: Overview of best performing algorithm for each test case
 - **Output files**: Detailed solutions saved for each algorithm
+- **Performance charts**: Visual comparison of algorithm performance (PNG format)
+- **Performance tables**: Detailed performance metrics per algorithm (TXT format)
+
+All results are saved in the `Source/Tables_and_Charts/` directory:
+- `table_{Algorithm}.txt` - Performance table for each algorithm
+- `chart_{Algorithm}.png` - Performance chart for each algorithm
+- `comparison_all_algorithms.png` - Overall comparison visualization
+- `test_{number}_result.txt` - Detailed results for each test case
+- `final_summary.txt` - Comprehensive performance summary
 
 ## 📝 Notes
 
