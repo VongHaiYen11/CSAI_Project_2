@@ -23,7 +23,6 @@ This is a project in the **Introduction to Artificial Intelligence** course at t
 - [Output Format](#output-format)
 - [Algorithms](#algorithms)
 - [Results](#results)
-- [Algorithm Selection](#algorithm-selection)
 - [Notes](#notes)
 - [Authors](#authors)
 
@@ -208,14 +207,6 @@ The program generates:
 - **Per-test comparison tables**: Shows execution time, result status, and correctness for each algorithm
 - **Final summary report**: Overview of best performing algorithm for each test case
 - **Output files**: Detailed solutions saved for each algorithm
-
-## 🎯 Algorithm Selection
-
-The system automatically selects the best algorithm based on:
-
-1. **Correctness**: Algorithms with correct solutions are preferred
-2. **Speed**: Among correct solutions, the fastest is selected
-3. **Priority**: PySAT > AStar > Backtracking > BruteForce (for ties)
 
 ## 📝 Notes
 
