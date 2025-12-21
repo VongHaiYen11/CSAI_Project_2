@@ -1,7 +1,6 @@
 from pysat.pb import PBEnc
 from is_intersect import is_intersect
 
-
 class Island:
     """Represents an island in the Hashiwokakero puzzle."""
     

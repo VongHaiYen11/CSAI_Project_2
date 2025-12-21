@@ -1,4 +1,4 @@
 # Required Python libraries
 numpy>=1.20.0
 pysat
-
+python-sat[pblib]
