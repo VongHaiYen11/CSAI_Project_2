@@ -14,22 +14,11 @@ This is a project in the **Introduction to Artificial Intelligence** course at t
 Hashiwokakero, also known as Bridges or Hashi, is a logic puzzle that challenges players to connect numbered islands with a specific number of bridges while following a set of simple rules. Published by Nikoli, this puzzle requires strategic thinking and careful planning to ensure all islands are interconnected without exceeding the allowed number of bridges per island. The game has gained popularity worldwide under different names, such as Ai-Ki-Ai in France, Denmark, the Netherlands, and Belgium. With its elegant design and logical depth, Hashiwokakero offers an engaging challenge for puzzle enthusiasts of all skill levels.
 
 ### Example Solved Puzzle
-
-Here's a visual example of a solved Hashiwokakero puzzle:
-
-```
-    2 ──── 3 ──── 4 ──── 2
-    │      │      │      │
-    1      2 ──── 3 ──── 1
-           │      │      │
-    2 ──── 5 ═════ 8 ═════ 4
-    │      │      │      │
-    3 ═════ 3 ──── 3 ──── 2
-    │      │      │      │
-    3 ──── 2 ──── 5 ──── 3
-    │      │      │      │
-    2 ──── 1 ──── 4 ──── 2
-```
+    2 ──── 1
+    │
+    4 ════ 3 ──── 1
+    │
+    3 ═══════════ 2
 
 ## 📋 Project Description
 
