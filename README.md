@@ -204,7 +204,7 @@ The system automatically selects the best algorithm based on:
 ## 📝 Notes
 
 - Brute Force is automatically skipped for grids larger than 9x9
-- Algorithms that exceed the timeout are marked as "NO SOLUTION" with the note "> Time Limit"
+- Algorithms that exceed the timeout are marked as "NO SOLUTION" with the note "Time Limit"
 - Solutions are verified against expected results in the `Solutions/` directory when available
 - All outputs are saved automatically for later review
 
