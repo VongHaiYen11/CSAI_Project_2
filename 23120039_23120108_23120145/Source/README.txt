@@ -1,7 +1,17 @@
-In order to run a single test input with all the algorithms, use this command: 
-python main.py --test input-0x.txt
+Running instructions
 
-Besides, you can test all the algorithms' performance with all inputs by using one of these commands:
-python main.py --all
-python main.py
+1. Install dependencies:
+   pip install -r requirements.txt
 
+2. Run a single test:
+   python main.py --test input-01.txt
+
+3. Run all tests:
+   python main.py --all
+   or
+   python main.py
+
+4. Set custom timeout (in seconds):
+   python main.py --all --timeout 120
+
+Output files are saved in the Outputs/ directory.

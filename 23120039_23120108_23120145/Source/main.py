@@ -109,7 +109,7 @@ def run_astar(matrix, timeout):
     """Run the A* algorithm."""
     try:
         solver = AStar()
-        result, duration = solver.solve(matrix)
+        result, duration = solver.solve(matrix, timeout=timeout)
 
         if duration >= timeout:
             return None, None, "TIMEOUT"
@@ -126,9 +126,9 @@ def run_pysat(matrix, timeout):
     """Run the PySAT algorithm."""
     try:
         solver = PySAT()
-        result, duration = solver.solve(matrix)
+        result, duration = solver.solve(matrix, timeout=timeout)
 
-        if duration > timeout:
+        if duration >= timeout:
             return None, None, "TIMEOUT"
         if result is None:
             return None, None, "NO SOLUTION"

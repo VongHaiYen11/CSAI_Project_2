@@ -11,6 +11,11 @@ from cnf import CNFGenerator
 from connectivity import check_connectivity
 
 
+class TimeoutException(Exception):
+    """Exception raised when algorithm exceeds time limit."""
+    pass
+
+
 class PySAT:
     """PySAT solver for Hashiwokakero puzzles using Glucose3 SAT solver."""
     
@@ -19,7 +24,7 @@ class PySAT:
         self.solution_vars = None
         self.matrix = None
     
-    def solve(self, matrix):
+    def solve(self, matrix, timeout=300):
         """Solve Hashiwokakero puzzle using SAT solver with Glucose3."""
         self.matrix = matrix
         
@@ -27,22 +32,41 @@ class PySAT:
         cnf_generator = CNFGenerator()
         clauses, reverse_map, islands, bridges, var_map, num_vars = cnf_generator.generate_cnf_clauses(matrix)
         
+        print(f"Timeout: {timeout}s")
+        
         # Solve with SAT solver
         start = time.perf_counter()
-        with Glucose3(bootstrap_with=clauses) as solver:
-            while solver.solve():
-                model = solver.get_model()
-                
-                # Check connectivity constraint
-                if check_connectivity(model, islands, reverse_map):
-                    duration = time.perf_counter() - start
-                    return self.build_output_matrix(model, reverse_map, islands, bridges, var_map), duration
-                else:
-                    # Block this solution and continue searching
-                    solver.add_clause([-x for x in model])
+        self.timeout = timeout
+        iterations = 0
         
-        duration = time.perf_counter() - start
-        return None, duration
+        try:
+            with Glucose3(bootstrap_with=clauses) as solver:
+                while solver.solve():
+                    # Check timeout periodically (every 100 iterations)
+                    iterations += 1
+                    if iterations % 100 == 0:
+                        elapsed = time.perf_counter() - start
+                        if elapsed >= self.timeout:
+                            raise TimeoutException()
+                    
+                    model = solver.get_model()
+                    
+                    # Check connectivity constraint
+                    if check_connectivity(model, islands, reverse_map):
+                        duration = time.perf_counter() - start
+                        return self.build_output_matrix(model, reverse_map, islands, bridges, var_map), duration
+                    else:
+                        # Block this solution and continue searching
+                        solver.add_clause([-x for x in model])
+            
+            duration = time.perf_counter() - start
+            return None, duration
+        
+        except TimeoutException:
+            duration = time.perf_counter() - start
+            print(f"\n⏱ TIMEOUT after {duration:.2f}s")
+            print(f"Iterations: {iterations:,}")
+            return None, duration
     
     def build_output_matrix(self, model, reverse_map, islands, bridges, var_map):
         """Build output matrix from SAT model."""

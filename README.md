@@ -1,12 +1,52 @@
-# Hashiwokakero Puzzle Solver
+# 🌉 Project 02: Hashiwokakero
 
-A comprehensive implementation and comparison of multiple algorithms for solving Hashiwokakero (Bridges) puzzles. This project evaluates four different solving approaches: Brute Force, Backtracking, A* Search, and PySAT (SAT-based solving).
+![Python](https://img.shields.io/badge/Python-3.7+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Status](https://img.shields.io/badge/Status-Complete-success?style=for-the-badge)
 
-## Overview
 
-Hashiwokakero is a logic puzzle where the goal is to connect islands (numbered cells) with bridges. The number on each island indicates how many bridges must connect to it. Bridges can be drawn horizontally or vertically, and must not cross each other.
+*Introduction to Artificial Intelligence - Class 23TN*  
+*Faculty of Information Technology - University of Science, VNU-HCM*
 
-## Project Structure
+This is a project in the **Introduction to Artificial Intelligence** course at the Faculty of Information Technology, University of Science, Vietnam National University - Ho Chi Minh City. This project implements and compares multiple algorithms for solving **Hashiwokakero (Bridges)** puzzles, evaluating four different solving approaches: A* Search, and PySAT (SAT-based solving), Brute Force, Backtracking.
+
+## 📖 Overview
+
+Hashiwokakero, also known as Bridges or Hashi, is a logic puzzle that challenges players to connect numbered islands with a specific number of bridges while following a set of simple rules. Published by Nikoli, this puzzle requires strategic thinking and careful planning to ensure all islands are interconnected without exceeding the allowed number of bridges per island. The game has gained popularity worldwide under different names, such as Ai-Ki-Ai in France, Denmark, the Netherlands, and Belgium. With its elegant design and logical depth, Hashiwokakero offers an engaging challenge for puzzle enthusiasts of all skill levels.
+
+### Example Solved Puzzle
+
+Here's a visual example of a solved Hashiwokakero puzzle:
+
+```
+    2 ──── 3 ──── 4 ──── 2
+    │      │      │      │
+    1      2 ──── 3 ──── 1
+           │      │      │
+    2 ──── 5 ═════ 8 ═════ 4
+    │      │      │      │
+    3 ═════ 3 ──── 3 ──── 2
+    │      │      │      │
+    3 ──── 2 ──── 5 ──── 3
+    │      │      │      │
+    2 ──── 1 ──── 4 ──── 2
+```
+
+## 📋 Project Description
+
+This project presents a comprehensive Hashiwokakero puzzle solver that implements and compares multiple solving algorithms. The puzzle is played on a rectangular grid where some cells contain numbered islands (values from 1 to 8), representing the required number of bridge connections, while the remaining cells are empty. Our solver employs various algorithmic approaches, including Conjunctive Normal Form (CNF) logic, to automatically connect all islands by drawing bridges that satisfy the puzzle's constraints.
+
+### Bridge Rules
+
+The bridges must follow certain criteria:
+
+- They must begin and end at distinct islands, traveling in a straight line between them.
+- They must not cross any other bridges or islands.
+- They may only run perpendicularly.
+- At most two bridges connect a pair of islands.
+- The number of bridges connected to each island must match the number on that island.
+- The bridges must connect the islands into a single connected group.
+
+## 📁 Project Structure
 
 ```
 23120039_23120108_23120145/
@@ -31,7 +71,7 @@ Hashiwokakero is a logic puzzle where the goal is to connect islands (numbered c
 └── README.md               # This file
 ```
 
-## Features
+## ✨ Features
 
 - **Multiple Algorithm Implementations**: Four different solving approaches
 - **Performance Comparison**: Automated benchmarking and timing
@@ -39,32 +79,33 @@ Hashiwokakero is a logic puzzle where the goal is to connect islands (numbered c
 - **Timeout Handling**: Configurable time limits for each algorithm
 - **Comprehensive Reporting**: Detailed comparison tables and summaries
 
-## Requirements
+## 📦 Requirements
 
-- Python 3.7+
-- Required packages (see `requirements.txt`):
+- **Python** 3.7+
+- **Required packages** (see `requirements.txt`):
   - `numpy >= 1.20.0`
   - `pysat`
   - `python-sat[pblib]`
 
-## Installation
+## 🚀 Installation
 
-1. Clone or download this repository
-2. Navigate to the Source directory:
-   ```bash
-   cd 23120039_23120108_23120145/Source
-   ```
-3. Create a virtual environment (recommended):
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-4. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+### Step 1: Navigate to Source Directory
+```bash
+cd 23120039_23120108_23120145/Source
+```
 
-## Usage
+### Step 2: Create Virtual Environment (Recommended)
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+### Step 3: Install Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+## 💻 How to Use
 
 ### Run a Single Test Case
 
@@ -72,6 +113,8 @@ Test all algorithms on a specific input file:
 ```bash
 python main.py --test input-01.txt
 ```
+
+*Note: `input-01.txt` is just an example. Replace it with any input file from the `Inputs/` directory (e.g., `input-02.txt`, `input-03.txt`, etc.).*
 
 ### Run All Test Cases
 
@@ -91,13 +134,16 @@ Set a custom timeout (in seconds) for algorithms:
 python main.py --all --timeout 120
 ```
 
-## Input Format
+*Note: `120` is just an example (representing 120 seconds). You can specify any positive integer value. The default timeout is **60 seconds** if not specified.*
+
+## 📥 Input Format
 
 Input files are located in the `Inputs/` directory. Each file contains a comma-separated grid where:
-- `0` represents an empty cell
+
+- `0` represents an empty cell (no island)
 - Numbers `1-8` represent islands with the required number of bridge connections
 
-Example (`input-01.txt`):
+**Example** (`input-01.txt`):
 ```
 0,2,0,5,0,0,2
 0,0,0,0,0,0,0
@@ -108,25 +154,25 @@ Example (`input-01.txt`):
 4,0,0,0,0,0,3
 ```
 
-## Output Format
+## 📤 Output Format
 
 Solutions are saved in the `Outputs/` directory, organized by algorithm. Each output file contains the solved puzzle grid where:
-- Numbers represent islands
-- `-` represents a horizontal bridge
-- `|` represents a vertical bridge
-- `=` represents a double horizontal bridge
-- `$` represents a double vertical bridge
-- `0` represents empty cells
 
-Example output:
+- **Numbers** represent islands
+- **`-`** represents a horizontal bridge
+- **`|`** represents a vertical bridge
+- **`=`** represents a double horizontal bridge
+- **`$`** represents a double vertical bridge
+- **`0`** represents empty cells
+
+**Output Location**: `Source/Outputs/{AlgorithmName}/output-{number}.txt`
+
+**Example**: The solution for `input-01.txt` using the A* algorithm is saved at:
 ```
-[ "0" , "2" , "=" , "5" , "-" , "-" , "2" ]
-[ "0" , "0" , "0" , "$" , "0" , "0" , "|" ]
-[ "4" , "=" , "2" , "$" , "2" , "=" , "4" ]
-...
+Source/Outputs/AStar/output-01.txt
 ```
 
-## Algorithms
+## 🧮 Algorithms
 
 ### 1. Brute Force
 - Exhaustively explores all possible bridge configurations
@@ -148,33 +194,47 @@ Example output:
 - Uses constraint programming techniques
 - Often the fastest for complex puzzles
 
-## Results
+## 📊 Results
 
 The program generates:
+
 - **Per-test comparison tables**: Shows execution time, result status, and correctness for each algorithm
 - **Final summary report**: Overview of best performing algorithm for each test case
 - **Output files**: Detailed solutions saved for each algorithm
 
-## Algorithm Selection
+## 🎯 Algorithm Selection
 
 The system automatically selects the best algorithm based on:
+
 1. **Correctness**: Algorithms with correct solutions are preferred
 2. **Speed**: Among correct solutions, the fastest is selected
 3. **Priority**: PySAT > AStar > Backtracking > BruteForce (for ties)
 
-## Notes
+## 📝 Notes
 
 - Brute Force is automatically skipped for grids larger than 9x9
-- Algorithms that exceed the timeout are marked as "TIMEOUT"
+- Algorithms that exceed the timeout are marked as "NO SOLUTION" with the note "> Time Limit"
 - Solutions are verified against expected results in the `Solutions/` directory when available
 - All outputs are saved automatically for later review
 
-## Authors
+## 👥 Authors
 
-- 23120039
-- 23120108
-- 23120145
+**Group 1 - Class 23TN**
 
-## License
+| Member                    | Student ID |
+|---------------------------|------------|
+| Ung Dung Thanh Hạ         | 23120039   |
+| Vòng Hải Yến              | 23120108   |
+| Nguyễn Ngọc Duy Mỹ       | 23120145   |
 
-This project is part of a university course assignment (CSAI Project 2).
+**Instructors**
+- Prof. Dr. Lê Hoài Bắc
+- Mr. Nguyễn Thanh Tình
+
+<div align="center">
+
+*December 2025*  
+*Group 1 | Class 23TN*  
+*University of Science, VNU-HCM*
+
+</div>

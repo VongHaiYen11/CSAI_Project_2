@@ -17,6 +17,11 @@ except ImportError as e:
     raise e
 
 
+class TimeoutException(Exception):
+    """Exception raised when algorithm exceeds time limit."""
+    pass
+
+
 class AStar:
     """A* solver for Hashiwokakero puzzles using heuristic search."""
     
@@ -25,7 +30,7 @@ class AStar:
         self.solution_vars = None
         self.matrix = None
 
-    def solve(self, matrix):
+    def solve(self, matrix, timeout=300):
         """Solve puzzle using A* search."""
         print("\n--- Preprocessing ---")
         self.matrix = matrix
@@ -39,6 +44,7 @@ class AStar:
          self.num_vars) = cnf_generator.generate_cnf_clauses(matrix)
         
         print(f"Setup done: {len(self.islands)} islands.")
+        print(f"Timeout: {timeout}s")
 
         self.bridge_pairs = []
         seen = set()
@@ -75,6 +81,7 @@ class AStar:
 
         print("\n--- Starting A* (Standard Version) ---")
         start_time = time.perf_counter()
+        self.timeout = timeout
 
         pq = []
         initial_state = {
@@ -91,45 +98,58 @@ class AStar:
 
         visited_nodes = 0
         
-        while pq:
-            curr_fx, _, _, state = heapq.heappop(pq)
-            visited_nodes += 1
-
-            if state["index"] >= len(self.bridge_pairs):
-                eval_res = self._evaluate_state(state)
-                if eval_res:
-                    num_components = eval_res[1]
-                    if num_components == 1:
-                        duration = time.perf_counter() - start_time
-                        self.solution_vars = state["1"]
-                        print(f"Solved! Visited nodes: {visited_nodes}")
-                        return self.get_result_matrix(), duration
-                continue
-
-            var1, var2 = self.bridge_pairs[state["index"]]
-            
-            options = [
-                ([],           [var1, var2]),
-                ([var1],       [var2]),
-                ([var1, var2], [])
-            ]
-
-            for add_to_1, add_to_0 in options:
-                new_state = deepcopy(state)
-                new_state["1"].extend(add_to_1)
-                new_state["0"].extend(add_to_0)
-                new_state["index"] += 1
-                new_state["gx"] = state["gx"] + 1
+        try:
+            while pq:
+                # Check timeout periodically (every 1000 nodes or every iteration for small problems)
+                if visited_nodes % 1000 == 0:
+                    elapsed = time.perf_counter() - start_time
+                    if elapsed >= self.timeout:
+                        raise TimeoutException()
                 
-                eval_res = self._evaluate_state(new_state)
-                if eval_res:
-                    new_hx = eval_res[0]
-                    new_state["components"] = eval_res[1]
-                    new_state["fx"] = new_state["gx"] + new_hx
-                    heapq.heappush(pq, (new_state["fx"], -new_state["index"], next(counter), new_state))
+                curr_fx, _, _, state = heapq.heappop(pq)
+                visited_nodes += 1
 
-        print("No solution found.")
-        return None, (time.perf_counter() - start_time)
+                if state["index"] >= len(self.bridge_pairs):
+                    eval_res = self._evaluate_state(state)
+                    if eval_res:
+                        num_components = eval_res[1]
+                        if num_components == 1:
+                            duration = time.perf_counter() - start_time
+                            self.solution_vars = state["1"]
+                            print(f"Solved! Visited nodes: {visited_nodes}")
+                            return self.get_result_matrix(), duration
+                    continue
+
+                var1, var2 = self.bridge_pairs[state["index"]]
+                
+                options = [
+                    ([],           [var1, var2]),
+                    ([var1],       [var2]),
+                    ([var1, var2], [])
+                ]
+
+                for add_to_1, add_to_0 in options:
+                    new_state = deepcopy(state)
+                    new_state["1"].extend(add_to_1)
+                    new_state["0"].extend(add_to_0)
+                    new_state["index"] += 1
+                    new_state["gx"] = state["gx"] + 1
+                    
+                    eval_res = self._evaluate_state(new_state)
+                    if eval_res:
+                        new_hx = eval_res[0]
+                        new_state["components"] = eval_res[1]
+                        new_state["fx"] = new_state["gx"] + new_hx
+                        heapq.heappush(pq, (new_state["fx"], -new_state["index"], next(counter), new_state))
+
+            print("No solution found.")
+            return None, (time.perf_counter() - start_time)
+        
+        except TimeoutException:
+            duration = time.perf_counter() - start_time
+            print(f"\n⏱ TIMEOUT after {duration:.2f}s")
+            print(f"Visited nodes: {visited_nodes:,}")
+            return None, duration
 
     def _evaluate_state(self, state):
         """Evaluate a state for A* search, checking constraints and computing connectivity heuristic."""
